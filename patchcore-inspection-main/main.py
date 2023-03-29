@@ -1,11 +1,13 @@
 import os
 from enum import Enum
+import csv
+from sklearn import metrics, cluster
+from sklearn.preprocessing import LabelEncoder
 
-from sklearn import metrics
-
-import test
+import matplotlib.pyplot as plt
 import PIL
-import torch
+from PIL import Image
+
 from scipy.spatial import distance
 from torchvision import transforms
 import logging
@@ -15,17 +17,18 @@ import pickle
 import numpy as np
 import torch
 import torch.nn.functional as F
-import tqdm
+from tqdm import tqdm
 
 import patchcore
 import patchcore.backbones
 import patchcore.common
 import patchcore.sampler
+from munkres import Munkres
 LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = "cuda"
+device = "cpu"
 
 _CLASSNAMES = [
     "bottle",
@@ -189,10 +192,10 @@ class MVTecDataset(torch.utils.data.Dataset):
         return imgpaths_per_class, data_to_iterate
 
 
-class PatchCore(torch.nn.Module):
+class AnomalyClusteringCore(torch.nn.Module):
     def __init__(self, device):
         """PatchCore anomaly detection class."""
-        super(PatchCore, self).__init__()
+        super(AnomalyClusteringCore, self).__init__()
         self.device = device
 
     def load(
@@ -250,10 +253,11 @@ class PatchCore(torch.nn.Module):
         self.featuresampler = featuresampler
 
     def embed(self, data):
+        print("{:-^80}".format("embedding"))
         if isinstance(data, torch.utils.data.DataLoader):
             features = []
             labels = []
-            from tqdm import tqdm
+
             with tqdm(total=len(data)) as progress:
                 for image in data:
                     if isinstance(image, dict):
@@ -513,30 +517,8 @@ def Weight_Distance(Z, i):
     return torch.mean(matrix_min, dim=1)
 
 
-def make_category_data(category):
-    import torch
-    loaded_patchcores = []
-    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
-    path = "/home/intern/graduate_project/mvtec_anomaly_detection"
-    # train_dataset = MVTecDataset(source=path_local, classname=category)
-    test_dataset = MVTecDataset(source=path_local, split=DatasetSplit.TEST, classname=category)
-    # train_dataloader = torch.utils.data.DataLoader(
-    #     train_dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     pin_memory=True,
-    # )
-    test_dataloader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-    )
-
-    backbone_names = ["wideresnet50"]
-    layers_to_extract_from = ['layer2']
+def make_category_data(category, backbone_names, layers_to_extract_from):
+    # 参数初始化
     pretrain_embed_dimension = 2048
     target_embed_dimension = 2048
     patchsize = 3
@@ -545,6 +527,31 @@ def make_category_data(category):
     input_shape = (3, 224, 224)
     anomaly_scorer_num_nn = 5
     sampler = patchcore.sampler.IdentitySampler()
+    backbone_seed = None
+    backbone_name = backbone_names[0]
+
+    loaded_patchcores = []
+    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
+    path = "/home/intern/code/mvtec_anomaly_detection"
+
+    # 加载数据集，dataloader
+    train_dataset = MVTecDataset(source=path, classname=category)
+    test_dataset = MVTecDataset(source=path, split=DatasetSplit.TEST, classname=category)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+    )
+    test_dataloader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+    )
+
 
     if len(backbone_names) > 1:
         layers_to_extract_from_coll = [[] for _ in range(len(backbone_names))]
@@ -554,10 +561,8 @@ def make_category_data(category):
             layers_to_extract_from_coll[idx].append(layer)
     else:
         layers_to_extract_from_coll = [layers_to_extract_from]
-
-    backbone_seed = None
-    backbone_name = backbone_names[0]
     layers_to_extract_from = layers_to_extract_from_coll[0]
+
     if ".seed-" in backbone_name:
         backbone_name, backbone_seed = backbone_name.split(".seed-")[0], int(
             backbone_name.split("-")[-1]
@@ -566,9 +571,9 @@ def make_category_data(category):
     backbone.name, backbone.seed = backbone_name, backbone_seed
 
     nn_method = patchcore.common.FaissNN(faiss_on_gpu, faiss_num_workers)
-
-    patchcore_instance = PatchCore(device)
-    patchcore_instance.load(
+    # 实例化对象
+    anomalyclusteringcore_instance = AnomalyClusteringCore(device)
+    anomalyclusteringcore_instance.load(
         backbone=backbone,
         layers_to_extract_from=layers_to_extract_from,
         device=device,
@@ -581,25 +586,28 @@ def make_category_data(category):
         nn_method=nn_method,
     )
     info = []
-    from tqdm import tqdm
 
     with tqdm(total=len(test_dataloader)) as progress:
         for image in test_dataloader:
             if isinstance(image, dict):
                 with torch.no_grad():
                     if image["is_anomaly"] == 1:
+                        del image['image']
+                        del image['mask']
                         info.append(image)
             progress.update(1)
-    # Z_train, label_train = patchcore_instance.embed(train_dataloader)
-    # Z_train = torch.tensor(Z_train)
-    Z_test, label_test = patchcore_instance.embed(test_dataloader)
-    Z_test = torch.tensor(Z_test)
+    Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
+    Z_train = torch.tensor(Z_train).to(device)
+    Z_test, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
+    Z_test = torch.tensor(Z_test).to(device)
     # label_total = label_train + label_test
 
     Z = torch.tensor([]).to(device)
     for i in range(len(label_test)):
         if label_test[i] == 1:
             Z = torch.cat((Z, Z_test[i].unsqueeze(0).to(device)), dim=0)
+
+
 
     tau = 1
     k = 1
@@ -615,9 +623,54 @@ def make_category_data(category):
             progress.update(1)
     data = (info, matrix_alpha, Z)
 
-    # torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
+    torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
     print(category + ' end')
     return data
+
+
+def best_map(L1, L2):
+    # L1 should be the labels and L2 should be the clustering number we got
+    Label1 = np.unique(L1)       # 去除重复的元素，由小大大排列
+    nClass1 = len(Label1)        # 标签的大小
+    Label2 = np.unique(L2)
+    nClass2 = len(Label2)
+    nClass = np.maximum(nClass1, nClass2)
+    G = np.zeros((nClass, nClass))
+    for i in range(nClass1):
+        ind_cla1 = L1 == Label1[i]
+        ind_cla1 = ind_cla1.astype(float)
+        for j in range(nClass2):
+            ind_cla2 = L2 == Label2[j]
+            ind_cla2 = ind_cla2.astype(float)
+            G[i, j] = np.sum(ind_cla2 * ind_cla1)
+    m = Munkres()
+    index = m.compute(-G.T)
+    index = np.array(index)
+    c = index[:, 1]
+    newL2 = np.zeros(L2.shape)
+    for i in range(nClass2):
+        newL2[L2 == Label2[i]] = Label1[c[i]]
+    return newL2
+
+
+# def visualize(info, alpha_PIL):
+#     # 使用pillow库读取图片
+#     fig = plt.figure(figsize=(12, 4))
+#     process = transforms.Compose([transforms.Resize(256),
+#                                   transforms.CenterCrop(224)])
+#
+#     img = Image.open(info["image_path"][0])
+#     img = process(img)
+#     ax1 = fig.add_subplot(131)
+#     ax1.imshow(img)
+#     img = Image.open(info["image_path"][0].replace("test", "ground_truth")
+#                      .replace(".png", "_mask.png"))
+#     img = process(img)
+#     ax2 = fig.add_subplot(132)
+#     ax2.imshow(img, cmap='gray')
+#     ax3 = fig.add_subplot(133)
+#     ax3.imshow(alpha_PIL, cmap='gray')
+#     plt.show()
 
 
 def calculate_metrics(category):
@@ -659,22 +712,22 @@ def calculate_metrics(category):
 
 if __name__ == "__main__":
     for i in _CLASSNAMES:
-        data = make_category_data(i)
+        data = make_category_data(i, ["wideresnet50"], ['layer1', 'layer2'])
         os.environ["OMP_NUM_THREADS"] = '1'
 
-        import csv
 
-        # 引用csv模块。
-        csv_file = open('result.csv', 'w', newline='', encoding='gbk')
-        # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
-        writer = csv.writer(csv_file)
-        # 用csv.writer()函数创建一个writer对象。
-        writer.writerow(["Category", "NMI", "ARI", "F1"])
-        for i in _CLASSNAMES:
-            print(i)
-            NMI, ARI, F1 = test.calculate_metrics(i)
-            writer.writerow([i, NMI, ARI, F1])
-        csv_file.close()
-        # 关闭文件
+
+    # 引用csv模块。
+    csv_file = open('result.csv', 'w', newline='', encoding='gbk')
+    # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
+    writer = csv.writer(csv_file)
+    # 用csv.writer()函数创建一个writer对象。
+    writer.writerow(["Category", "NMI", "ARI", "F1"])
+    for i in _CLASSNAMES:
+        print(i)
+        NMI, ARI, F1 = calculate_metrics(i)
+        writer.writerow([i, NMI, ARI, F1])
+    csv_file.close()
+    # 关闭文件
 
 
