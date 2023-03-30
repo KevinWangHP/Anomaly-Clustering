@@ -15,20 +15,20 @@ os.environ["OMP_NUM_THREADS"] = '1'
 
 _CLASSNAMES = [
     "bottle",
-    "cable",
-    "capsule",
-    "hazelnut",
-    "metal_nut",
-    "pill",
-    "screw",
-    "toothbrush",
-    "transistor",
-    "zipper",
-    "carpet",
-    "grid",
-    "leather",
-    "tile",
-    "wood",
+    # "cable",
+    # "capsule",
+    # "hazelnut",
+    # "metal_nut",
+    # "pill",
+    # "screw",
+    # "toothbrush",
+    # "transistor",
+    # "zipper",
+    # "carpet",
+    # "grid",
+    # "leather",
+    # "tile",
+    # "wood",
 ]
 
 
@@ -44,17 +44,20 @@ def imshow(tensor, title=None):
 
 
 def visualize(info, alpha_PIL):
+    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
+    path = "/home/intern/code/mvtec_anomaly_detection"
     # 使用pillow库读取图片
     fig = plt.figure(figsize=(12, 4))
     process = transforms.Compose([transforms.Resize(256),
                                   transforms.CenterCrop(224)])
 
-    img = Image.open(info["image_path"][0])
+    img = Image.open(info["image_path"][0].replace(path, path_local))
     img = process(img)
     ax1 = fig.add_subplot(131)
     ax1.imshow(img)
     img = Image.open(info["image_path"][0].replace("test", "ground_truth")
-                     .replace(".png", "_mask.png"))
+                     .replace(".png", "_mask.png")
+                     .replace(path, path_local))
     img = process(img)
     ax2 = fig.add_subplot(132)
     ax2.imshow(img, cmap='gray')
@@ -91,10 +94,11 @@ def best_map(L1, L2):
 def calculate_metrics(category):
     unloader = transforms.ToPILImage()
     info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
-    for i in range(0, len(info), 20):
+    for i in range(0, len(info), 3):
         info_i = info[i]
         max_alpha = max(matrix_alpha[i])
-        alpha_i = matrix_alpha[i].reshape(28, 28).cpu().clone()
+        alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
+                                          int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
         # we clone the tensor to not do changes on it
         alpha_i_PIL = unloader(alpha_i/max_alpha)
         visualize(info_i, alpha_i_PIL)

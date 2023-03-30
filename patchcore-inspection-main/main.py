@@ -519,7 +519,7 @@ def Weight_Distance(Z, i):
 
 def make_category_data(category, backbone_names, layers_to_extract_from):
     # 参数初始化
-    pretrain_embed_dimension = 2048
+    pretrain_embed_dimension = 1024
     target_embed_dimension = 2048
     patchsize = 3
     faiss_on_gpu = True
@@ -537,13 +537,13 @@ def make_category_data(category, backbone_names, layers_to_extract_from):
     # 加载数据集，dataloader
     train_dataset = MVTecDataset(source=path, classname=category)
     test_dataset = MVTecDataset(source=path, split=DatasetSplit.TEST, classname=category)
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-    )
+    # train_dataloader = torch.utils.data.DataLoader(
+    #     train_dataset,
+    #     batch_size=1,
+    #     shuffle=False,
+    #     num_workers=0,
+    #     pin_memory=True,
+    # )
     test_dataloader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=1,
@@ -596,10 +596,10 @@ def make_category_data(category, backbone_names, layers_to_extract_from):
                         del image['mask']
                         info.append(image)
             progress.update(1)
-    Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
-    Z_train = torch.tensor(Z_train).to(device)
+    # Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
+    # Z_train = torch.tensor(Z_train).to(device)
     Z_test, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
-    Z_test = torch.tensor(Z_test).to(device)
+    Z_test = torch.tensor(Z_test).to("cpu")
     # label_total = label_train + label_test
 
     Z = torch.tensor([]).to(device)
@@ -624,7 +624,7 @@ def make_category_data(category, backbone_names, layers_to_extract_from):
     data = (info, matrix_alpha, Z)
 
     torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
-    print(category + ' end')
+    print("{:-^80}".format(category + ' end'))
     return data
 
 
@@ -712,22 +712,22 @@ def calculate_metrics(category):
 
 if __name__ == "__main__":
     for i in _CLASSNAMES:
-        data = make_category_data(i, ["wideresnet50"], ['layer1', 'layer2'])
+        data = make_category_data(i, ["wideresnet50"], ['layer2'])
         os.environ["OMP_NUM_THREADS"] = '1'
 
 
 
     # 引用csv模块。
-    csv_file = open('result.csv', 'w', newline='', encoding='gbk')
-    # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
-    writer = csv.writer(csv_file)
-    # 用csv.writer()函数创建一个writer对象。
-    writer.writerow(["Category", "NMI", "ARI", "F1"])
-    for i in _CLASSNAMES:
-        print(i)
-        NMI, ARI, F1 = calculate_metrics(i)
-        writer.writerow([i, NMI, ARI, F1])
-    csv_file.close()
+    # csv_file = open('result.csv', 'w', newline='', encoding='gbk')
+    # # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
+    # writer = csv.writer(csv_file)
+    # # 用csv.writer()函数创建一个writer对象。
+    # writer.writerow(["Category", "NMI", "ARI", "F1"])
+    # for i in _CLASSNAMES:
+    #     print(i)
+    #     NMI, ARI, F1 = calculate_metrics(i)
+    #     writer.writerow([i, NMI, ARI, F1])
+    # csv_file.close()
     # 关闭文件
 
 
