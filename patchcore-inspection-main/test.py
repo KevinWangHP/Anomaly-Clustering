@@ -15,20 +15,20 @@ os.environ["OMP_NUM_THREADS"] = '1'
 
 _CLASSNAMES = [
     "bottle",
-    # "cable",
-    # "capsule",
-    # "hazelnut",
-    # "metal_nut",
-    # "pill",
-    # "screw",
-    # "toothbrush",
-    # "transistor",
-    # "zipper",
-    # "carpet",
-    # "grid",
-    # "leather",
-    # "tile",
-    # "wood",
+    "cable",
+    "capsule",
+    "hazelnut",
+    "metal_nut",
+    "pill",
+    "screw",
+    "toothbrush",
+    "transistor",
+    "zipper",
+    "carpet",
+    "grid",
+    "leather",
+    "tile",
+    "wood",
 ]
 
 
@@ -94,7 +94,7 @@ def best_map(L1, L2):
 def calculate_metrics(category):
     unloader = transforms.ToPILImage()
     info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
-    for i in range(0, len(info), 3):
+    for i in range(0, len(info), 20):
         info_i = info[i]
         max_alpha = max(matrix_alpha[i])
         alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
@@ -124,7 +124,7 @@ def calculate_metrics(category):
 
     print(f'NMI: {NMI}')
     print(f'ARI: {ARI}')
-    print(f'F1:{F1}')
+    print(f'F1:{F1}\n')
 
     return NMI, ARI, F1
 
@@ -141,7 +141,7 @@ if __name__ == "__main__":
     # 用csv.writer()函数创建一个writer对象。
     writer.writerow(["Category", "NMI", "ARI", "F1"])
     for i in _CLASSNAMES:
-        print(i)
+        print("{:-^80}".format(i))
         NMI, ARI, F1 = calculate_metrics(i)
         writer.writerow([i, NMI, ARI, F1])
     csv_file.close()

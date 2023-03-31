@@ -285,46 +285,55 @@ class AnomalyClusteringCore(torch.nn.Module):
 
         features = [features[layer] for layer in self.layers_to_extract_from]
 
-        features = [
-            self.patch_maker.patchify(x, return_spatial_info=True) for x in features
-        ]
-        patch_shapes = [x[1] for x in features]
-        features = [x[0] for x in features]
-        ref_num_patches = patch_shapes[0]
+        # 添加3 * 3 AveragePooling
+        features = [torch.nn.AvgPool2d(3, padding=1)(feature) for feature in features]
+        features = features[0]
+        features = features.view(features.shape[0], features.shape[1],
+                                 features.shape[2]*features.shape[3])
+        features = features.permute(0, 2, 1)
+        features = torch.nn.LayerNorm([features.shape[1], features.shape[2]])(features)
+        # 添加Unit L2 Norm
 
-        for i in range(1, len(features)):
-            _features = features[i]
-            patch_dims = patch_shapes[i]
+        # features = [
+        #     self.patch_maker.patchify(x, return_spatial_info=True) for x in features
+        # ]
+        # patch_shapes = [x[1] for x in features]
+        # features = [x[0] for x in features]
+        # ref_num_patches = patch_shapes[0]
+        #
+        # for i in range(1, len(features)):
+        #     _features = features[i]
+        #     patch_dims = patch_shapes[i]
+        #
+        #     # TODO(pgehler): Add comments
+        #     _features = _features.reshape(
+        #         _features.shape[0], patch_dims[0], patch_dims[1], *_features.shape[2:]
+        #     )
+        #     _features = _features.permute(0, -3, -2, -1, 1, 2)
+        #     perm_base_shape = _features.shape
+        #     _features = _features.reshape(-1, *_features.shape[-2:])
+        #     _features = F.interpolate(
+        #         _features.unsqueeze(1),
+        #         size=(ref_num_patches[0], ref_num_patches[1]),
+        #         mode="bilinear",
+        #         align_corners=False,
+        #     )
+        #     _features = _features.squeeze(1)
+        #     _features = _features.reshape(
+        #         *perm_base_shape[:-2], ref_num_patches[0], ref_num_patches[1]
+        #     )
+        #     _features = _features.permute(0, -2, -1, 1, 2, 3)
+        #     _features = _features.reshape(len(_features), -1, *_features.shape[-3:])
+        #     features[i] = _features
+        # features = [x.reshape(-1, *x.shape[-3:]) for x in features]
+        #
+        # # As different feature backbones & patching provide differently
+        # # sized features, these are brought into the correct form here.
+        # features = self.forward_modules["preprocessing"](features)
+        # features = self.forward_modules["preadapt_aggregator"](features)
 
-            # TODO(pgehler): Add comments
-            _features = _features.reshape(
-                _features.shape[0], patch_dims[0], patch_dims[1], *_features.shape[2:]
-            )
-            _features = _features.permute(0, -3, -2, -1, 1, 2)
-            perm_base_shape = _features.shape
-            _features = _features.reshape(-1, *_features.shape[-2:])
-            _features = F.interpolate(
-                _features.unsqueeze(1),
-                size=(ref_num_patches[0], ref_num_patches[1]),
-                mode="bilinear",
-                align_corners=False,
-            )
-            _features = _features.squeeze(1)
-            _features = _features.reshape(
-                *perm_base_shape[:-2], ref_num_patches[0], ref_num_patches[1]
-            )
-            _features = _features.permute(0, -2, -1, 1, 2, 3)
-            _features = _features.reshape(len(_features), -1, *_features.shape[-3:])
-            features[i] = _features
-        features = [x.reshape(-1, *x.shape[-3:]) for x in features]
-
-        # As different feature backbones & patching provide differently
-        # sized features, these are brought into the correct form here.
-        features = self.forward_modules["preprocessing"](features)
-        features = self.forward_modules["preadapt_aggregator"](features)
-
-        if provide_patch_shapes:
-            return _detach(features), patch_shapes
+        # if provide_patch_shapes:
+        #     return _detach(features), patch_shapes
         return _detach(features)
 
     def fit(self, training_data):
@@ -519,7 +528,7 @@ def Weight_Distance(Z, i):
 
 def make_category_data(category, backbone_names, layers_to_extract_from):
     # 参数初始化
-    pretrain_embed_dimension = 1024
+    pretrain_embed_dimension = 2048
     target_embed_dimension = 2048
     patchsize = 3
     faiss_on_gpu = True
@@ -591,21 +600,15 @@ def make_category_data(category, backbone_names, layers_to_extract_from):
         for image in test_dataloader:
             if isinstance(image, dict):
                 with torch.no_grad():
-                    if image["is_anomaly"] == 1:
-                        del image['image']
-                        del image['mask']
-                        info.append(image)
+                    del image['image']
+                    del image['mask']
+                    info.append(image)
             progress.update(1)
     # Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
     # Z_train = torch.tensor(Z_train).to(device)
-    Z_test, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
-    Z_test = torch.tensor(Z_test).to("cpu")
+    Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
+    Z = torch.tensor(Z).to(device)
     # label_total = label_train + label_test
-
-    Z = torch.tensor([]).to(device)
-    for i in range(len(label_test)):
-        if label_test[i] == 1:
-            Z = torch.cat((Z, Z_test[i].unsqueeze(0).to(device)), dim=0)
 
 
 
