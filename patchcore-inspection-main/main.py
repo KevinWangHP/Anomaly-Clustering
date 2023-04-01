@@ -292,6 +292,7 @@ class AnomalyClusteringCore(torch.nn.Module):
                                  features.shape[2]*features.shape[3])
         features = features.permute(0, 2, 1)
         features = torch.nn.LayerNorm([features.shape[1], features.shape[2]])(features)
+        features = features.squeeze(0)
         # 添加Unit L2 Norm
 
         # features = [
