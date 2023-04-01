@@ -284,186 +284,58 @@ class AnomalyClusteringCore(torch.nn.Module):
             features = self.forward_modules["feature_aggregator"](images)
 
         features = [features[layer] for layer in self.layers_to_extract_from]
-
+        features_new = []
         # 添加3 * 3 AveragePooling
-        features = [torch.nn.AvgPool2d(3, padding=1)(feature) for feature in features]
-        features = features[0]
-        features = features.view(features.shape[0], features.shape[1],
-                                 features.shape[2]*features.shape[3])
-        features = features.permute(0, 2, 1)
-        features = torch.nn.LayerNorm([features.shape[1], features.shape[2]])(features)
-        features = features.squeeze(0)
+        for feature in features:
+            # feature = torch.nn.AvgPool2d(3, padding=1)(feature)
+            feature = torch.nn.LayerNorm([feature.shape[1], feature.shape[2],
+                                          feature.shape[3]])(feature)
+            features_new.append(feature)
+        features = features_new
         # 添加Unit L2 Norm
+        del features_new
 
-        # features = [
-        #     self.patch_maker.patchify(x, return_spatial_info=True) for x in features
-        # ]
-        # patch_shapes = [x[1] for x in features]
-        # features = [x[0] for x in features]
-        # ref_num_patches = patch_shapes[0]
-        #
-        # for i in range(1, len(features)):
-        #     _features = features[i]
-        #     patch_dims = patch_shapes[i]
-        #
-        #     # TODO(pgehler): Add comments
-        #     _features = _features.reshape(
-        #         _features.shape[0], patch_dims[0], patch_dims[1], *_features.shape[2:]
-        #     )
-        #     _features = _features.permute(0, -3, -2, -1, 1, 2)
-        #     perm_base_shape = _features.shape
-        #     _features = _features.reshape(-1, *_features.shape[-2:])
-        #     _features = F.interpolate(
-        #         _features.unsqueeze(1),
-        #         size=(ref_num_patches[0], ref_num_patches[1]),
-        #         mode="bilinear",
-        #         align_corners=False,
-        #     )
-        #     _features = _features.squeeze(1)
-        #     _features = _features.reshape(
-        #         *perm_base_shape[:-2], ref_num_patches[0], ref_num_patches[1]
-        #     )
-        #     _features = _features.permute(0, -2, -1, 1, 2, 3)
-        #     _features = _features.reshape(len(_features), -1, *_features.shape[-3:])
-        #     features[i] = _features
-        # features = [x.reshape(-1, *x.shape[-3:]) for x in features]
-        #
-        # # As different feature backbones & patching provide differently
-        # # sized features, these are brought into the correct form here.
-        # features = self.forward_modules["preprocessing"](features)
-        # features = self.forward_modules["preadapt_aggregator"](features)
+        features = [
+            self.patch_maker.patchify(x, return_spatial_info=True) for x in features
+        ]
+        patch_shapes = [x[1] for x in features]
+        features = [x[0] for x in features]
+        ref_num_patches = patch_shapes[0]
 
-        # if provide_patch_shapes:
-        #     return _detach(features), patch_shapes
+        for i in range(1, len(features)):
+            _features = features[i]
+            patch_dims = patch_shapes[i]
+
+            # TODO(pgehler): Add comments
+            _features = _features.reshape(
+                _features.shape[0], patch_dims[0], patch_dims[1], *_features.shape[2:]
+            )
+            _features = _features.permute(0, -3, -2, -1, 1, 2)
+            perm_base_shape = _features.shape
+            _features = _features.reshape(-1, *_features.shape[-2:])
+            _features = F.interpolate(
+                _features.unsqueeze(1),
+                size=(ref_num_patches[0], ref_num_patches[1]),
+                mode="bilinear",
+                align_corners=False,
+            )
+            _features = _features.squeeze(1)
+            _features = _features.reshape(
+                *perm_base_shape[:-2], ref_num_patches[0], ref_num_patches[1]
+            )
+            _features = _features.permute(0, -2, -1, 1, 2, 3)
+            _features = _features.reshape(len(_features), -1, *_features.shape[-3:])
+            features[i] = _features
+        features = [x.reshape(-1, *x.shape[-3:]) for x in features]
+
+        # As different feature backbones & patching provide differently
+        # sized features, these are brought into the correct form here.
+        features = self.forward_modules["preprocessing"](features)
+        features = self.forward_modules["preadapt_aggregator"](features)
+
+        if provide_patch_shapes:
+            return _detach(features), patch_shapes
         return _detach(features)
-
-    def fit(self, training_data):
-        """PatchCore training.
-
-        This function computes the embeddings of the training data and fills the
-        memory bank of SPADE.
-        """
-        self._fill_memory_bank(training_data)
-
-    def _fill_memory_bank(self, input_data):
-        """Computes and sets the support features for SPADE."""
-        _ = self.forward_modules.eval()
-
-        def _image_to_features(input_image):
-            with torch.no_grad():
-                input_image = input_image.to(torch.float).to(self.device)
-                return self._embed(input_image)
-
-        features = []
-        with tqdm.tqdm(
-            input_data, desc="Computing support features...", position=1, leave=False
-        ) as data_iterator:
-            for image in data_iterator:
-                if isinstance(image, dict):
-                    image = image["image"]
-                features.append(_image_to_features(image))
-
-        features = np.concatenate(features, axis=0)
-        features = self.featuresampler.run(features)
-
-        self.anomaly_scorer.fit(detection_features=[features])
-
-    def predict(self, data):
-        if isinstance(data, torch.utils.data.DataLoader):
-            return self._predict_dataloader(data)
-        return self._predict(data)
-
-    def _predict_dataloader(self, dataloader):
-        """This function provides anomaly scores/maps for full dataloaders."""
-        _ = self.forward_modules.eval()
-
-        scores = []
-        masks = []
-        labels_gt = []
-        masks_gt = []
-        with tqdm.tqdm(dataloader, desc="Inferring...", leave=False) as data_iterator:
-            for image in data_iterator:
-                if isinstance(image, dict):
-                    labels_gt.extend(image["is_anomaly"].numpy().tolist())
-                    masks_gt.extend(image["mask"].numpy().tolist())
-                    image = image["image"]
-                _scores, _masks = self._predict(image)
-                for score, mask in zip(_scores, _masks):
-                    scores.append(score)
-                    masks.append(mask)
-        return scores, masks, labels_gt, masks_gt
-
-    def _predict(self, images):
-        """Infer score and mask for a batch of images."""
-        images = images.to(torch.float).to(self.device)
-        _ = self.forward_modules.eval()
-
-        batchsize = images.shape[0]
-        with torch.no_grad():
-            features, patch_shapes = self._embed(images, provide_patch_shapes=True)
-            features = np.asarray(features)
-
-            patch_scores = image_scores = self.anomaly_scorer.predict([features])[0]
-            image_scores = self.patch_maker.unpatch_scores(
-                image_scores, batchsize=batchsize
-            )
-            image_scores = image_scores.reshape(*image_scores.shape[:2], -1)
-            image_scores = self.patch_maker.score(image_scores)
-
-            patch_scores = self.patch_maker.unpatch_scores(
-                patch_scores, batchsize=batchsize
-            )
-            scales = patch_shapes[0]
-            patch_scores = patch_scores.reshape(batchsize, scales[0], scales[1])
-
-            masks = self.anomaly_segmentor.convert_to_segmentation(patch_scores)
-
-        return [score for score in image_scores], [mask for mask in masks]
-
-    @staticmethod
-    def _params_file(filepath, prepend=""):
-        return os.path.join(filepath, prepend + "patchcore_params.pkl")
-
-    def save_to_path(self, save_path: str, prepend: str = "") -> None:
-        LOGGER.info("Saving PatchCore data.")
-        self.anomaly_scorer.save(
-            save_path, save_features_separately=False, prepend=prepend
-        )
-        patchcore_params = {
-            "backbone.name": self.backbone.name,
-            "layers_to_extract_from": self.layers_to_extract_from,
-            "input_shape": self.input_shape,
-            "pretrain_embed_dimension": self.forward_modules[
-                "preprocessing"
-            ].output_dim,
-            "target_embed_dimension": self.forward_modules[
-                "preadapt_aggregator"
-            ].target_dim,
-            "patchsize": self.patch_maker.patchsize,
-            "patchstride": self.patch_maker.stride,
-            "anomaly_scorer_num_nn": self.anomaly_scorer.n_nearest_neighbours,
-        }
-        with open(self._params_file(save_path, prepend), "wb") as save_file:
-            pickle.dump(patchcore_params, save_file, pickle.HIGHEST_PROTOCOL)
-
-    def load_from_path(
-        self,
-        load_path: str,
-        device: torch.device,
-        nn_method: patchcore.common.FaissNN(False, 4),
-        prepend: str = "",
-    ) -> None:
-        LOGGER.info("Loading and initializing PatchCore.")
-        with open(self._params_file(load_path, prepend), "rb") as load_file:
-            patchcore_params = pickle.load(load_file)
-        patchcore_params["backbone"] = patchcore.backbones.load(
-            patchcore_params["backbone.name"]
-        )
-        patchcore_params["backbone"].name = patchcore_params["backbone.name"]
-        del patchcore_params["backbone.name"]
-        self.load(**patchcore_params, device=device, nn_method=nn_method)
-
-        self.anomaly_scorer.load(load_path, prepend)
 
 
 # Image handling classes.
@@ -527,11 +399,26 @@ def Weight_Distance(Z, i):
     return torch.mean(matrix_min, dim=1)
 
 
-def make_category_data(category, backbone_names, layers_to_extract_from):
+def Calculate_Weight_Distance(tau, k, Z):
+    print("{:-^80}".format("Calculating Alpha Matrix Of Weight Distance"))
+    matrix_alpha = torch.tensor([]).to(device)
+    with tqdm(total=int(Z.shape[0])) as progress:
+        for i in range(Z.shape[0]):
+            alpha_i = k * torch.exp(1 / tau * Weight_Distance(Z, i).unsqueeze(0))
+            alpha_i = alpha_i / alpha_i.sum()
+            matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
+            progress.update(1)
+    return matrix_alpha
+
+
+def make_category_data_unsupervised(category,
+                                    pretrain_embed_dimension,
+                                    target_embed_dimension,
+                                    backbone_names,
+                                    layers_to_extract_from,
+                                    patchsize):
+    print("{:-^80}".format(category + ' start unsupervised'))
     # 参数初始化
-    pretrain_embed_dimension = 2048
-    target_embed_dimension = 2048
-    patchsize = 3
     faiss_on_gpu = True
     faiss_num_workers = 4
     input_shape = (3, 224, 224)
@@ -611,127 +498,126 @@ def make_category_data(category, backbone_names, layers_to_extract_from):
     Z = torch.tensor(Z).to(device)
     # label_total = label_train + label_test
 
+    #计算alpha矩阵
+
+    matrix_alpha = Calculate_Weight_Distance(1, 1, Z)
+    data = (info, matrix_alpha, Z)
+
+    torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
+    print("{:-^80}".format(category + ' end\n'))
+    return data
+
+
+def make_category_data_supervised(category,
+                                  pretrain_embed_dimension,
+                                  target_embed_dimension,
+                                  backbone_names,
+                                  layers_to_extract_from,
+                                  patchsize):
+    # 参数初始化
+    faiss_on_gpu = True
+    faiss_num_workers = 4
+    input_shape = (3, 224, 224)
+    anomaly_scorer_num_nn = 5
+    sampler = patchcore.sampler.IdentitySampler()
+    backbone_seed = None
+    backbone_name = backbone_names[0]
+
+    loaded_patchcores = []
+    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
+    path = "/home/intern/code/mvtec_anomaly_detection"
+
+    # 加载数据集，dataloader
+    train_dataset = MVTecDataset(source=path, classname=category)
+    test_dataset = MVTecDataset(source=path, split=DatasetSplit.TEST, classname=category)
+    train_dataloader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+    )
+    test_dataloader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=1,
+        shuffle=False,
+        num_workers=0,
+        pin_memory=True,
+    )
+
+
+    if len(backbone_names) > 1:
+        layers_to_extract_from_coll = [[] for _ in range(len(backbone_names))]
+        for layer in layers_to_extract_from:
+            idx = int(layer.split(".")[0])
+            layer = ".".join(layer.split(".")[1:])
+            layers_to_extract_from_coll[idx].append(layer)
+    else:
+        layers_to_extract_from_coll = [layers_to_extract_from]
+    layers_to_extract_from = layers_to_extract_from_coll[0]
+
+    if ".seed-" in backbone_name:
+        backbone_name, backbone_seed = backbone_name.split(".seed-")[0], int(
+            backbone_name.split("-")[-1]
+        )
+    backbone = patchcore.backbones.load(backbone_name)
+    backbone.name, backbone.seed = backbone_name, backbone_seed
+
+    nn_method = patchcore.common.FaissNN(faiss_on_gpu, faiss_num_workers)
+    # 实例化对象
+    anomalyclusteringcore_instance = AnomalyClusteringCore(device)
+    anomalyclusteringcore_instance.load(
+        backbone=backbone,
+        layers_to_extract_from=layers_to_extract_from,
+        device=device,
+        input_shape=input_shape,
+        pretrain_embed_dimension=pretrain_embed_dimension,
+        target_embed_dimension=target_embed_dimension,
+        patchsize=patchsize,
+        featuresampler=sampler,
+        anomaly_scorer_num_nn=anomaly_scorer_num_nn,
+        nn_method=nn_method,
+    )
+    info = []
+
+    with tqdm(total=len(test_dataloader)) as progress:
+        for image in test_dataloader:
+            if isinstance(image, dict):
+                with torch.no_grad():
+                    del image['image']
+                    del image['mask']
+                    info.append(image)
+            progress.update(1)
+    Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
+    Z_train = torch.tensor(Z_train).to(device)
+    Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
+    Z = torch.tensor(Z).to(device)
+    # label_total = label_train + label_test
+
 
 
     tau = 1
     k = 1
     M = 64
 
-    matrix_alpha = torch.tensor([]).to(device)
-
-    with tqdm(total=int(Z.shape[0])) as progress:
-        for i in range(Z.shape[0]):
-            alpha_i = k * torch.exp(1 / tau * Weight_Distance(Z, i).unsqueeze(0))
-            alpha_i = alpha_i / alpha_i.sum()
-            matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
-            progress.update(1)
+    matrix_alpha = Calculate_Weight_Distance(1, 1, Z)
     data = (info, matrix_alpha, Z)
 
-    torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
+    torch.save(data, "tmp/data_" + category + "_supervised.pickle")
     print("{:-^80}".format(category + ' end'))
     return data
 
 
-def best_map(L1, L2):
-    # L1 should be the labels and L2 should be the clustering number we got
-    Label1 = np.unique(L1)       # 去除重复的元素，由小大大排列
-    nClass1 = len(Label1)        # 标签的大小
-    Label2 = np.unique(L2)
-    nClass2 = len(Label2)
-    nClass = np.maximum(nClass1, nClass2)
-    G = np.zeros((nClass, nClass))
-    for i in range(nClass1):
-        ind_cla1 = L1 == Label1[i]
-        ind_cla1 = ind_cla1.astype(float)
-        for j in range(nClass2):
-            ind_cla2 = L2 == Label2[j]
-            ind_cla2 = ind_cla2.astype(float)
-            G[i, j] = np.sum(ind_cla2 * ind_cla1)
-    m = Munkres()
-    index = m.compute(-G.T)
-    index = np.array(index)
-    c = index[:, 1]
-    newL2 = np.zeros(L2.shape)
-    for i in range(nClass2):
-        newL2[L2 == Label2[i]] = Label1[c[i]]
-    return newL2
-
-
-# def visualize(info, alpha_PIL):
-#     # 使用pillow库读取图片
-#     fig = plt.figure(figsize=(12, 4))
-#     process = transforms.Compose([transforms.Resize(256),
-#                                   transforms.CenterCrop(224)])
-#
-#     img = Image.open(info["image_path"][0])
-#     img = process(img)
-#     ax1 = fig.add_subplot(131)
-#     ax1.imshow(img)
-#     img = Image.open(info["image_path"][0].replace("test", "ground_truth")
-#                      .replace(".png", "_mask.png"))
-#     img = process(img)
-#     ax2 = fig.add_subplot(132)
-#     ax2.imshow(img, cmap='gray')
-#     ax3 = fig.add_subplot(133)
-#     ax3.imshow(alpha_PIL, cmap='gray')
-#     plt.show()
-
-
-def calculate_metrics(category):
-    unloader = transforms.ToPILImage()
-    info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
-    # for i in range(len(info)):
-    #     info_i = info[i]
-    #     max_alpha = max(matrix_alpha[i])
-    #     alpha_i = matrix_alpha[i].reshape(28, 28).cpu().clone()
-    #     # we clone the tensor to not do changes on it
-    #     alpha_i_PIL = unloader(alpha_i/max_alpha)
-    #     visualize(info_i, alpha_i_PIL)
-
-
-    matrix_alpha = matrix_alpha.unsqueeze(1)
-    X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
-    label = []
-    for i in info:
-        label.append(i["anomaly"][0])
-
-    le = LabelEncoder()
-    label = le.fit_transform(label)
-
-    model = cluster.AgglomerativeClustering(n_clusters=len(set(label)))
-
-    predict = model.fit_predict(X)
-    predict = best_map(label, predict)
-
-    NMI = metrics.normalized_mutual_info_score(label, predict)
-    ARI = metrics.adjusted_rand_score(label, predict)
-    F1 = metrics.f1_score(label, predict, average="micro")
-
-    print(f'NMI: {NMI}')
-    print(f'ARI: {ARI}')
-    print(f'F1:{F1}')
-
-    return NMI, ARI, F1
-
-
 if __name__ == "__main__":
     for i in _CLASSNAMES:
-        data = make_category_data(i, ["wideresnet50"], ['layer2'])
-        os.environ["OMP_NUM_THREADS"] = '1'
+        data = make_category_data_unsupervised(category=i,
+                                               pretrain_embed_dimension=2048,
+                                               target_embed_dimension=4096,
+                                               backbone_names=["wideresnet50"],
+                                               layers_to_extract_from=['layer2', 'layer3'],
+                                               patchsize=3)
 
 
 
-    # 引用csv模块。
-    # csv_file = open('result.csv', 'w', newline='', encoding='gbk')
-    # # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
-    # writer = csv.writer(csv_file)
-    # # 用csv.writer()函数创建一个writer对象。
-    # writer.writerow(["Category", "NMI", "ARI", "F1"])
-    # for i in _CLASSNAMES:
-    #     print(i)
-    #     NMI, ARI, F1 = calculate_metrics(i)
-    #     writer.writerow([i, NMI, ARI, F1])
-    # csv_file.close()
-    # 关闭文件
 
 

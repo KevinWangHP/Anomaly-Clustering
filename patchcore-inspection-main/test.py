@@ -95,6 +95,8 @@ def best_map(L1, L2):
 def calculate_metrics(category):
     unloader = transforms.ToPILImage()
     info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
+
+    # 数据可视化
     for i in range(0, len(info), 20):
         info_i = info[i]
         max_alpha = max(matrix_alpha[i])
@@ -103,7 +105,6 @@ def calculate_metrics(category):
         # we clone the tensor to not do changes on it
         alpha_i_PIL = unloader(alpha_i/max_alpha)
         visualize(info_i, alpha_i_PIL)
-
 
     matrix_alpha = matrix_alpha.unsqueeze(1)
     X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
