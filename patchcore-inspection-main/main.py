@@ -284,8 +284,9 @@ class AnomalyClusteringCore(torch.nn.Module):
             features = self.forward_modules["feature_aggregator"](images)
 
         features = [features[layer] for layer in self.layers_to_extract_from]
-        features_new = []
+
         # 添加3 * 3 AveragePooling
+        features_new = []
         for feature in features:
             # feature = torch.nn.AvgPool2d(3, padding=1)(feature)
             feature = torch.nn.LayerNorm([feature.shape[1], feature.shape[2],
@@ -294,6 +295,7 @@ class AnomalyClusteringCore(torch.nn.Module):
         features = features_new
         # 添加Unit L2 Norm
         del features_new
+
 
         features = [
             self.patch_maker.patchify(x, return_spatial_info=True) for x in features
@@ -391,7 +393,7 @@ def Max_Hausdorff_Distance(i, j):
     return max(distance.directed_hausdorff(i, j), distance.directed_hausdorff(i, j))[0]
 
 
-def Weight_Distance(Z, i):
+def Weight_Distance_Unsupervised(Z, i):
     matrix_min = torch.tensor([]).to(device)
     for j in range(Z.shape[0]):
         if j != i:
@@ -399,12 +401,35 @@ def Weight_Distance(Z, i):
     return torch.mean(matrix_min, dim=1)
 
 
-def Calculate_Weight_Distance(tau, k, Z):
-    print("{:-^80}".format("Calculating Alpha Matrix Of Weight Distance"))
+def Weight_Distance_Supervised(Z, Z_train, i):
+    matrix_min = torch.tensor([]).to(device)
+    for j in range(Z_train.shape[0]):
+        dist_matrix = torch.cdist(Z[i], Z_train[j])
+        dist_matrix = torch.min(dist_matrix, dim=1)[0].unsqueeze(1)
+        matrix_min = torch.cat((matrix_min, dist_matrix), dim=1)
+    matrix_min = torch.min(matrix_min, dim=1)[0]
+    return matrix_min
+
+
+def Matrix_Alpha_Unsupervised(tau, k, Z):
+    print("{:-^80}".format("Calculating Unsupervised Alpha Matrix"))
     matrix_alpha = torch.tensor([]).to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
-            alpha_i = k * torch.exp(1 / tau * Weight_Distance(Z, i).unsqueeze(0))
+            alpha_i = k * torch.exp(1 / tau * Weight_Distance_Unsupervised(Z, i).unsqueeze(0))
+            alpha_i = alpha_i / alpha_i.sum()
+            matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
+            progress.update(1)
+    return matrix_alpha
+
+
+def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
+    print("{:-^80}".format("Calculating Supervised Alpha Matrix"))
+    Z_train = Z_train[:int(ratio * len(Z)), :, :]
+    matrix_alpha = torch.tensor([]).to(device)
+    with tqdm(total=int(Z.shape[0])) as progress:
+        for i in range(Z.shape[0]):
+            alpha_i = k * torch.exp(1 / tau * Weight_Distance_Supervised(Z, Z_train, i).unsqueeze(0))
             alpha_i = alpha_i / alpha_i.sum()
             matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
             progress.update(1)
@@ -492,6 +517,9 @@ def make_category_data_unsupervised(category,
                     del image['mask']
                     info.append(image)
             progress.update(1)
+    for i in info:
+        if len(i["anomaly"]) != 1:
+            print(i["anomaly"])
     # Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
     # Z_train = torch.tensor(Z_train).to(device)
     Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
@@ -500,7 +528,9 @@ def make_category_data_unsupervised(category,
 
     #计算alpha矩阵
 
-    matrix_alpha = Calculate_Weight_Distance(1, 1, Z)
+    matrix_alpha = Matrix_Alpha_Unsupervised(tau=1,
+                                             k=1,
+                                             Z=Z)
     data = (info, matrix_alpha, Z)
 
     torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
@@ -513,7 +543,8 @@ def make_category_data_supervised(category,
                                   target_embed_dimension,
                                   backbone_names,
                                   layers_to_extract_from,
-                                  patchsize):
+                                  patchsize,
+                                  train_ratio=1):
     # 参数初始化
     faiss_on_gpu = True
     faiss_num_workers = 4
@@ -588,34 +619,36 @@ def make_category_data_supervised(category,
                     del image['mask']
                     info.append(image)
             progress.update(1)
+
     Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
     Z_train = torch.tensor(Z_train).to(device)
     Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
     Z = torch.tensor(Z).to(device)
     # label_total = label_train + label_test
 
-
-
-    tau = 1
-    k = 1
-    M = 64
-
-    matrix_alpha = Calculate_Weight_Distance(1, 1, Z)
+    matrix_alpha = Matrix_Alpha_Supervised(tau=1, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
     data = (info, matrix_alpha, Z)
 
     torch.save(data, "tmp/data_" + category + "_supervised.pickle")
-    print("{:-^80}".format(category + ' end'))
+    print("{:-^60}".format(category + ' end'))
     return data
 
 
 if __name__ == "__main__":
-    for i in _CLASSNAMES:
-        data = make_category_data_unsupervised(category=i,
+    for category in _CLASSNAMES:
+        data = make_category_data_unsupervised(category=category,
                                                pretrain_embed_dimension=2048,
                                                target_embed_dimension=4096,
                                                backbone_names=["wideresnet50"],
                                                layers_to_extract_from=['layer2', 'layer3'],
                                                patchsize=3)
+        # data = make_category_data_supervised(category=category,
+        #                                      pretrain_embed_dimension=2048,
+        #                                      target_embed_dimension=4096,
+        #                                      backbone_names=["wideresnet50"],
+        #                                      layers_to_extract_from=['layer2'],
+        #                                      patchsize=3,
+        #                                      train_ratio=1)
 
 
 

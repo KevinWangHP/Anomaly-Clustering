@@ -97,20 +97,30 @@ def calculate_metrics(category):
     info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
 
     # 数据可视化
-    for i in range(0, len(info), 20):
-        info_i = info[i]
-        max_alpha = max(matrix_alpha[i])
-        alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
-                                          int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
-        # we clone the tensor to not do changes on it
-        alpha_i_PIL = unloader(alpha_i/max_alpha)
-        visualize(info_i, alpha_i_PIL)
+    # label_current = 'start'
+    # for i in range(0, len(info), 1):
+    #     info_i = info[i]
+    #     max_alpha = max(matrix_alpha[i])
+    #     alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
+    #                                       int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
+    #     # we clone the tensor to not do changes on it
+    #     alpha_i_PIL = unloader(alpha_i/max_alpha)
+    #     if label_current != info_i["anomaly"]:
+    #         label_current = info_i["anomaly"]
+    #         visualize(info_i, alpha_i_PIL)
 
     matrix_alpha = matrix_alpha.unsqueeze(1)
     X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
+
+    # 删除多标签实例
+    X_one_category = np.zeros((1, X.shape[1]))
     label = []
-    for i in info:
-        label.append(i["anomaly"][0])
+    for i in range(len(info)):
+        if info[i]["anomaly"][0] != "combined":
+            label.append(info[i]["anomaly"][0])
+            X_one_category = np.append(X_one_category, np.expand_dims(X[i], axis=0), axis=0)
+    X = X_one_category[1:]
+    del X_one_category
 
     le = LabelEncoder()
     label = le.fit_transform(label)
