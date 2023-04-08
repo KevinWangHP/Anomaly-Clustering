@@ -545,6 +545,7 @@ def make_category_data_supervised(category,
                                   layers_to_extract_from,
                                   patchsize,
                                   train_ratio=1):
+    print("{:-^80}".format(category + ' start supervised'))
     # 参数初始化
     faiss_on_gpu = True
     faiss_num_workers = 4
@@ -646,7 +647,7 @@ if __name__ == "__main__":
         #                                      pretrain_embed_dimension=2048,
         #                                      target_embed_dimension=4096,
         #                                      backbone_names=["wideresnet50"],
-        #                                      layers_to_extract_from=['layer2'],
+        #                                      layers_to_extract_from=['layer2', 'layer3'],
         #                                      patchsize=3,
         #                                      train_ratio=1)
 

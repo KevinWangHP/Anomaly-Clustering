@@ -92,24 +92,30 @@ def best_map(L1, L2):
     return newL2
 
 
-def calculate_metrics(category):
+def calculate_metrics(category, average):
     unloader = transforms.ToPILImage()
-    info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + "_unsupervised.pickle", map_location='cpu')
+    unsupervised = "_unsupervised.pickle"
+    supervised = "_supervised.pickle"
+    info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + supervised, map_location='cpu')
 
     # 数据可视化
-    # label_current = 'start'
-    # for i in range(0, len(info), 1):
-    #     info_i = info[i]
-    #     max_alpha = max(matrix_alpha[i])
-    #     alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
-    #                                       int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
-    #     # we clone the tensor to not do changes on it
-    #     alpha_i_PIL = unloader(alpha_i/max_alpha)
-    #     if label_current != info_i["anomaly"]:
-    #         label_current = info_i["anomaly"]
-    #         visualize(info_i, alpha_i_PIL)
+    label_current = 'start'
+    for i in range(0, len(info), 1):
+        info_i = info[i]
+        max_alpha = max(matrix_alpha[i])
+        alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
+                                          int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
+        # we clone the tensor to not do changes on it
+        alpha_i_PIL = unloader(alpha_i/max_alpha)
+        if label_current != info_i["anomaly"]:
+            label_current = info_i["anomaly"]
+            visualize(info_i, alpha_i_PIL)
 
-    matrix_alpha = matrix_alpha.unsqueeze(1)
+    if average:
+        matrix_alpha = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
+    else:
+        matrix_alpha = matrix_alpha.unsqueeze(1)
+
     X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
 
     # 删除多标签实例
@@ -133,7 +139,7 @@ def calculate_metrics(category):
     NMI = metrics.normalized_mutual_info_score(label, predict)
     ARI = metrics.adjusted_rand_score(label, predict)
     F1 = metrics.f1_score(label, predict, average="micro")
-
+    print("Weighted Average")
     print(f'NMI: {NMI}')
     print(f'ARI: {ARI}')
     print(f'F1:{F1}\n')
@@ -154,7 +160,7 @@ if __name__ == "__main__":
     writer.writerow(["Category", "NMI", "ARI", "F1"])
     for i in _CLASSNAMES:
         print("{:-^80}".format(i))
-        NMI, ARI, F1 = calculate_metrics(i)
+        NMI, ARI, F1 = calculate_metrics(category=i, average=True)
         writer.writerow([i, NMI, ARI, F1])
     csv_file.close()
     # 关闭文件
