@@ -63,7 +63,7 @@ def visualize(info, alpha_PIL):
         ax2 = fig.add_subplot(132)
         ax2.imshow(img, cmap='gray')
     ax3 = fig.add_subplot(133)
-    ax3.imshow(alpha_PIL, cmap='gray')
+    ax3.imshow(alpha_PIL)
     plt.show()
 
 

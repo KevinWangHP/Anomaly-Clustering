@@ -5,6 +5,7 @@ from sklearn import metrics, cluster
 from sklearn.preprocessing import LabelEncoder
 
 import matplotlib.pyplot as plt
+import math
 import PIL
 from PIL import Image
 
@@ -289,6 +290,13 @@ class AnomalyClusteringCore(torch.nn.Module):
         features_new = []
         for feature in features:
             # feature = torch.nn.AvgPool2d(3, padding=1)(feature)
+            if len(feature.shape) == 3:
+                feature = feature[:, 1:, :]
+                feature = feature.reshape(feature.shape[0],
+                                          int(math.sqrt(feature.shape[1])),
+                                          int(math.sqrt(feature.shape[1])),
+                                          feature.shape[2])
+                feature = feature.permute(0, 3, 1, 2)
             feature = torch.nn.LayerNorm([feature.shape[1], feature.shape[2],
                                           feature.shape[3]])(feature)
             features_new.append(feature)
@@ -531,11 +539,11 @@ def make_category_data_unsupervised(category,
     matrix_alpha = Matrix_Alpha_Unsupervised(tau=1,
                                              k=1,
                                              Z=Z)
-    data = (info, matrix_alpha, Z)
-
-    torch.save(data, "tmp/data_" + category + "_unsupervised.pickle")
+    data_matrix = (matrix_alpha, Z)
+    torch.save(info, "tmp/info_" + category + ".pickle")
+    torch.save(data_matrix, "tmp/data_" + category + "_supervised.pickle")
     print("{:-^80}".format(category + ' end\n'))
-    return data
+    return data_matrix
 
 
 def make_category_data_supervised(category,
@@ -628,9 +636,9 @@ def make_category_data_supervised(category,
     # label_total = label_train + label_test
 
     matrix_alpha = Matrix_Alpha_Supervised(tau=1, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
-    data = (info, matrix_alpha, Z)
-
-    torch.save(data, "tmp/data_" + category + "_supervised.pickle")
+    data_matrix = (matrix_alpha, Z)
+    torch.save(info, "tmp/info_" + category + ".pickle")
+    torch.save(data_matrix, "tmp/data_" + category + "_supervised.pickle")
     print("{:-^60}".format(category + ' end'))
     return data
 

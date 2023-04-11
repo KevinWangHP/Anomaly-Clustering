@@ -1,5 +1,8 @@
 import timm  # noqa
 import torchvision.models as models  # noqa
+import patchcore.vision_transformer as vits
+import torch
+
 
 _BACKBONES = {
     "alexnet": "models.alexnet(pretrained=True)",
@@ -44,8 +47,34 @@ _BACKBONES = {
     "efficientnetv2_m": 'timm.create_model("tf_efficientnetv2_m", pretrained=True)',
     "efficientnetv2_l": 'timm.create_model("tf_efficientnetv2_l", pretrained=True)',
     "efficientnet_b3a": 'timm.create_model("efficientnet_b3a", pretrained=True)',
+    "dino_deitsmall16": 'model.load_state_dict(torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)'
 }
 
 
 def load(name):
+    url = None
+    patch_size = 8
+    if name == "dino_deitsmall16":
+        url = "dino_deitsmall16_pretrain/dino_deitsmall16_pretrain.pth"
+        patch_size = 16
+    elif name == "dino_deitsmall8_300ep":
+        url = "dino_deitsmall8_300ep_pretrain/dino_deitsmall8_300ep_pretrain.pth"  # model used for visualizations in our paper
+    elif name == "dino_vitbase16":
+        url = "dino_vitbase16_pretrain/dino_vitbase16_pretrain.pth"
+        patch_size = 16
+    elif name == "dino_vitbase8":
+        url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
+    if url is not None:
+        device = torch.device("cuda:2") if torch.cuda.is_available() else torch.device("cpu")
+        # build model
+        # vit_tiny, vit_small, vit_base, patch_size=8, 16
+        model = vits.__dict__['vit_small'](patch_size=patch_size, num_classes=0)
+        for p in model.parameters():
+            p.requires_grad = False
+        model.eval()
+        model.to(device)
+
+        state_dict = torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)
+        model.load_state_dict(state_dict, strict=True)
+        return model
     return eval(_BACKBONES[name])
