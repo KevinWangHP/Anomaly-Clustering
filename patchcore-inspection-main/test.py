@@ -64,7 +64,13 @@ def visualize(info, alpha_PIL):
         ax2.imshow(img, cmap='gray')
     ax3 = fig.add_subplot(133)
     ax3.imshow(alpha_PIL)
-    plt.show()
+    os.makedirs("out\\dino_deitsmall8_300ep", exist_ok=True)
+
+    fname = os.path.join("out\\dino_deitsmall8_300ep", info["classname"][0] + "_" +
+                         info["anomaly"][0] + ".png")
+    plt.savefig(fname)
+    print(f"{fname} saved.")
+    # plt.show()
 
 
 def best_map(L1, L2):
@@ -96,8 +102,13 @@ def calculate_metrics(category, average):
     unloader = transforms.ToPILImage()
     unsupervised = "_unsupervised.pickle"
     supervised = "_supervised.pickle"
-    info, matrix_alpha, Z_list = torch.load("tmp/data_" + category + supervised, map_location='cpu')
+    model = "dino_deitsmall8_300ep"
+    # model = "wideresnet50"
+    matrix_alpha_path = "tmp/data_" + category + "_" + model + unsupervised
+    # matrix_alpha_path = "tmp/data_" + category + "_" + unsupervised
+    matrix_alpha, Z_list = torch.load(matrix_alpha_path, map_location='cpu')
 
+    info = torch.load("tmp/info_" + category + ".pickle", map_location='cpu')
     # 数据可视化
     label_current = 'start'
     for i in range(0, len(info), 1):
@@ -110,12 +121,11 @@ def calculate_metrics(category, average):
         if label_current != info_i["anomaly"]:
             label_current = info_i["anomaly"]
             visualize(info_i, alpha_i_PIL)
-
+    matrix_alpha = matrix_alpha.unsqueeze(1)
     if average:
         matrix_alpha = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
-    else:
-        matrix_alpha = matrix_alpha.unsqueeze(1)
 
+    # 计算加权embedding
     X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
 
     # 删除多标签实例
@@ -151,7 +161,7 @@ if __name__ == "__main__":
     os.environ["OMP_NUM_THREADS"] = '1'
 
     import csv
-
+    file_name = "result.csv"
     # 引用csv模块。
     csv_file = open('result.csv', 'w', newline='', encoding='gbk')
     # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
@@ -160,7 +170,7 @@ if __name__ == "__main__":
     writer.writerow(["Category", "NMI", "ARI", "F1"])
     for i in _CLASSNAMES:
         print("{:-^80}".format(i))
-        NMI, ARI, F1 = calculate_metrics(category=i, average=True)
+        NMI, ARI, F1 = calculate_metrics(category=i, average=False)
         writer.writerow([i, NMI, ARI, F1])
     csv_file.close()
     # 关闭文件

@@ -540,8 +540,8 @@ def make_category_data_unsupervised(category,
                                              k=1,
                                              Z=Z)
     data_matrix = (matrix_alpha, Z)
-    torch.save(info, "tmp/info_" + category + ".pickle")
-    torch.save(data_matrix, "tmp/data_" + category + "_supervised.pickle")
+    # torch.save(info, "tmp/info_" + category + ".pickle")
+    torch.save(data_matrix, "tmp/data_" + category + "_" + backbone_name + "_unsupervised.pickle")
     print("{:-^80}".format(category + ' end\n'))
     return data_matrix
 
@@ -637,27 +637,27 @@ def make_category_data_supervised(category,
 
     matrix_alpha = Matrix_Alpha_Supervised(tau=1, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
     data_matrix = (matrix_alpha, Z)
-    torch.save(info, "tmp/info_" + category + ".pickle")
-    torch.save(data_matrix, "tmp/data_" + category + "_supervised.pickle")
+    # torch.save(info, "tmp/info_" + category + ".pickle")
+    torch.save(data_matrix, "tmp/data_" + category + "_" + backbone_name + "_supervised.pickle")
     print("{:-^60}".format(category + ' end'))
-    return data
+    return data_matrix
 
 
 if __name__ == "__main__":
     for category in _CLASSNAMES:
-        data = make_category_data_unsupervised(category=category,
-                                               pretrain_embed_dimension=2048,
-                                               target_embed_dimension=4096,
-                                               backbone_names=["wideresnet50"],
-                                               layers_to_extract_from=['layer2', 'layer3'],
-                                               patchsize=3)
-        # data = make_category_data_supervised(category=category,
-        #                                      pretrain_embed_dimension=2048,
-        #                                      target_embed_dimension=4096,
-        #                                      backbone_names=["wideresnet50"],
-        #                                      layers_to_extract_from=['layer2', 'layer3'],
-        #                                      patchsize=3,
-        #                                      train_ratio=1)
+        # data = make_category_data_unsupervised(category=category,
+        #                                        pretrain_embed_dimension=2048,
+        #                                        target_embed_dimension=4096,
+        #                                        backbone_names=["dino_deitsmall8_300ep"],
+        #                                        layers_to_extract_from=['blocks.10', 'blocks.11'],
+        #                                        patchsize=3)
+        data = make_category_data_supervised(category=category,
+                                             pretrain_embed_dimension=2048,
+                                             target_embed_dimension=4096,
+                                             backbone_names=["dino_deitsmall8_300ep"],
+                                             layers_to_extract_from=['blocks.10', 'blocks.11'],
+                                             patchsize=3,
+                                             train_ratio=1)
 
 
 
