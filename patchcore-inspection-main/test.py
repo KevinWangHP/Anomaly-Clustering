@@ -64,9 +64,9 @@ def visualize(info, alpha_PIL):
         ax2.imshow(img, cmap='gray')
     ax3 = fig.add_subplot(133)
     ax3.imshow(alpha_PIL)
-    os.makedirs("out\\dino_deitsmall8_300ep", exist_ok=True)
+    os.makedirs("out\\dino_deitsmall8_300ep_supervised", exist_ok=True)
 
-    fname = os.path.join("out\\dino_deitsmall8_300ep", info["classname"][0] + "_" +
+    fname = os.path.join("out\\dino_deitsmall8_300ep_supervised", info["classname"][0] + "_" +
                          info["anomaly"][0] + ".png")
     plt.savefig(fname)
     print(f"{fname} saved.")
@@ -104,7 +104,7 @@ def calculate_metrics(category, average):
     supervised = "_supervised.pickle"
     model = "dino_deitsmall8_300ep"
     # model = "wideresnet50"
-    matrix_alpha_path = "tmp/data_" + category + "_" + model + unsupervised
+    matrix_alpha_path = "tmp/data_" + category + "_" + model + supervised
     # matrix_alpha_path = "tmp/data_" + category + "_" + unsupervised
     matrix_alpha, Z_list = torch.load(matrix_alpha_path, map_location='cpu')
 

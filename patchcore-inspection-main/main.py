@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = "cpu"
+device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
 
 _CLASSNAMES = [
     "bottle",
@@ -449,7 +449,8 @@ def make_category_data_unsupervised(category,
                                     target_embed_dimension,
                                     backbone_names,
                                     layers_to_extract_from,
-                                    patchsize):
+                                    patchsize,
+                                    tau=1):
     print("{:-^80}".format(category + ' start unsupervised'))
     # 参数初始化
     faiss_on_gpu = True
@@ -536,7 +537,7 @@ def make_category_data_unsupervised(category,
 
     #计算alpha矩阵
 
-    matrix_alpha = Matrix_Alpha_Unsupervised(tau=1,
+    matrix_alpha = Matrix_Alpha_Unsupervised(tau=tau,
                                              k=1,
                                              Z=Z)
     data_matrix = (matrix_alpha, Z)
@@ -552,7 +553,8 @@ def make_category_data_supervised(category,
                                   backbone_names,
                                   layers_to_extract_from,
                                   patchsize,
-                                  train_ratio=1):
+                                  train_ratio=1,
+                                  tau=1):
     print("{:-^80}".format(category + ' start supervised'))
     # 参数初始化
     faiss_on_gpu = True
@@ -568,8 +570,8 @@ def make_category_data_supervised(category,
     path = "/home/intern/code/mvtec_anomaly_detection"
 
     # 加载数据集，dataloader
-    train_dataset = MVTecDataset(source=path, classname=category)
-    test_dataset = MVTecDataset(source=path, split=DatasetSplit.TEST, classname=category)
+    train_dataset = MVTecDataset(source=path_local, classname=category)
+    test_dataset = MVTecDataset(source=path_local, split=DatasetSplit.TEST, classname=category)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=1,
@@ -635,7 +637,7 @@ def make_category_data_supervised(category,
     Z = torch.tensor(Z).to(device)
     # label_total = label_train + label_test
 
-    matrix_alpha = Matrix_Alpha_Supervised(tau=1, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
+    matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
     data_matrix = (matrix_alpha, Z)
     # torch.save(info, "tmp/info_" + category + ".pickle")
     torch.save(data_matrix, "tmp/data_" + category + "_" + backbone_name + "_supervised.pickle")
@@ -650,14 +652,16 @@ if __name__ == "__main__":
         #                                        target_embed_dimension=4096,
         #                                        backbone_names=["dino_deitsmall8_300ep"],
         #                                        layers_to_extract_from=['blocks.10', 'blocks.11'],
-        #                                        patchsize=3)
+        #                                        patchsize=3,
+        #                                        tau=1)
         data = make_category_data_supervised(category=category,
                                              pretrain_embed_dimension=2048,
                                              target_embed_dimension=4096,
                                              backbone_names=["dino_deitsmall8_300ep"],
                                              layers_to_extract_from=['blocks.10', 'blocks.11'],
                                              patchsize=3,
-                                             train_ratio=1)
+                                             train_ratio=1,
+                                             tau=1)
 
 
 

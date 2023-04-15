@@ -46,8 +46,7 @@ _BACKBONES = {
     "efficientnet_b1": 'timm.create_model("tf_efficientnet_b1", pretrained=True)',
     "efficientnetv2_m": 'timm.create_model("tf_efficientnetv2_m", pretrained=True)',
     "efficientnetv2_l": 'timm.create_model("tf_efficientnetv2_l", pretrained=True)',
-    "efficientnet_b3a": 'timm.create_model("efficientnet_b3a", pretrained=True)',
-    "dino_deitsmall16": 'model.load_state_dict(torch.hub.load_state_dict_from_url(url="https://dl.fbaipublicfiles.com/dino/" + url)'
+    "efficientnet_b3a": 'timm.create_model("efficientnet_b3a", pretrained=True)'
 }
 
 
@@ -65,7 +64,7 @@ def load(name):
     elif name == "dino_vitbase8":
         url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
     if url is not None:
-        device = torch.device("cuda:2") if torch.cuda.is_available() else torch.device("cpu")
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         # build model
         # vit_tiny, vit_small, vit_base, patch_size=8, 16
         model = vits.__dict__['vit_small'](patch_size=patch_size, num_classes=0)
