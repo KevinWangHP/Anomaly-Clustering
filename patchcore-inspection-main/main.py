@@ -29,7 +29,7 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+device = "cpu"
 
 _CLASSNAMES = [
     "bottle",
@@ -444,14 +444,18 @@ def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
     return matrix_alpha
 
 
-def make_category_data_unsupervised(category,
-                                    pretrain_embed_dimension,
-                                    target_embed_dimension,
-                                    backbone_names,
-                                    layers_to_extract_from,
-                                    patchsize,
-                                    tau=1):
-    print("{:-^80}".format(category + ' start unsupervised'))
+def make_category_data(path,
+                       category,
+                       pretrain_embed_dimension,
+                       target_embed_dimension,
+                       backbone_names,
+                       layers_to_extract_from,
+                       patchsize,
+                       train_ratio=1,
+                       tau=1,
+                       supervised="unsupervised"
+                       ):
+    print("{:-^80}".format(category + ' start ' + supervised))
     # 参数初始化
     faiss_on_gpu = True
     faiss_num_workers = 4
@@ -462,116 +466,10 @@ def make_category_data_unsupervised(category,
     backbone_name = backbone_names[0]
 
     loaded_patchcores = []
-    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
-    path = "/home/intern/code/mvtec_anomaly_detection"
 
     # 加载数据集，dataloader
     train_dataset = MVTecDataset(source=path, classname=category)
     test_dataset = MVTecDataset(source=path, split=DatasetSplit.TEST, classname=category)
-    # train_dataloader = torch.utils.data.DataLoader(
-    #     train_dataset,
-    #     batch_size=1,
-    #     shuffle=False,
-    #     num_workers=0,
-    #     pin_memory=True,
-    # )
-    test_dataloader = torch.utils.data.DataLoader(
-        test_dataset,
-        batch_size=1,
-        shuffle=False,
-        num_workers=0,
-        pin_memory=True,
-    )
-
-
-    if len(backbone_names) > 1:
-        layers_to_extract_from_coll = [[] for _ in range(len(backbone_names))]
-        for layer in layers_to_extract_from:
-            idx = int(layer.split(".")[0])
-            layer = ".".join(layer.split(".")[1:])
-            layers_to_extract_from_coll[idx].append(layer)
-    else:
-        layers_to_extract_from_coll = [layers_to_extract_from]
-    layers_to_extract_from = layers_to_extract_from_coll[0]
-
-    if ".seed-" in backbone_name:
-        backbone_name, backbone_seed = backbone_name.split(".seed-")[0], int(
-            backbone_name.split("-")[-1]
-        )
-    backbone = patchcore.backbones.load(backbone_name)
-    backbone.name, backbone.seed = backbone_name, backbone_seed
-
-    nn_method = patchcore.common.FaissNN(faiss_on_gpu, faiss_num_workers)
-    # 实例化对象
-    anomalyclusteringcore_instance = AnomalyClusteringCore(device)
-    anomalyclusteringcore_instance.load(
-        backbone=backbone,
-        layers_to_extract_from=layers_to_extract_from,
-        device=device,
-        input_shape=input_shape,
-        pretrain_embed_dimension=pretrain_embed_dimension,
-        target_embed_dimension=target_embed_dimension,
-        patchsize=patchsize,
-        featuresampler=sampler,
-        anomaly_scorer_num_nn=anomaly_scorer_num_nn,
-        nn_method=nn_method,
-    )
-    info = []
-
-    with tqdm(total=len(test_dataloader)) as progress:
-        for image in test_dataloader:
-            if isinstance(image, dict):
-                with torch.no_grad():
-                    del image['image']
-                    del image['mask']
-                    info.append(image)
-            progress.update(1)
-    for i in info:
-        if len(i["anomaly"]) != 1:
-            print(i["anomaly"])
-    # Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
-    # Z_train = torch.tensor(Z_train).to(device)
-    Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
-    Z = torch.tensor(Z).to(device)
-    # label_total = label_train + label_test
-
-    #计算alpha矩阵
-
-    matrix_alpha = Matrix_Alpha_Unsupervised(tau=tau,
-                                             k=1,
-                                             Z=Z)
-    data_matrix = (matrix_alpha, Z)
-    # torch.save(info, "tmp/info_" + category + ".pickle")
-    torch.save(data_matrix, "tmp/data_" + category + "_" + backbone_name + "_unsupervised.pickle")
-    print("{:-^80}".format(category + ' end\n'))
-    return data_matrix
-
-
-def make_category_data_supervised(category,
-                                  pretrain_embed_dimension,
-                                  target_embed_dimension,
-                                  backbone_names,
-                                  layers_to_extract_from,
-                                  patchsize,
-                                  train_ratio=1,
-                                  tau=1):
-    print("{:-^80}".format(category + ' start supervised'))
-    # 参数初始化
-    faiss_on_gpu = True
-    faiss_num_workers = 4
-    input_shape = (3, 224, 224)
-    anomaly_scorer_num_nn = 5
-    sampler = patchcore.sampler.IdentitySampler()
-    backbone_seed = None
-    backbone_name = backbone_names[0]
-
-    loaded_patchcores = []
-    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
-    path = "/home/intern/code/mvtec_anomaly_detection"
-
-    # 加载数据集，dataloader
-    train_dataset = MVTecDataset(source=path_local, classname=category)
-    test_dataset = MVTecDataset(source=path_local, split=DatasetSplit.TEST, classname=category)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=1,
@@ -606,7 +504,8 @@ def make_category_data_supervised(category,
     backbone.name, backbone.seed = backbone_name, backbone_seed
 
     nn_method = patchcore.common.FaissNN(faiss_on_gpu, faiss_num_workers)
-    # 实例化对象
+
+    # 实例化模型对象
     anomalyclusteringcore_instance = AnomalyClusteringCore(device)
     anomalyclusteringcore_instance.load(
         backbone=backbone,
@@ -631,37 +530,57 @@ def make_category_data_supervised(category,
                     info.append(image)
             progress.update(1)
 
-    Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
-    Z_train = torch.tensor(Z_train).to(device)
+    # 测试集embedding
     Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
     Z = torch.tensor(Z).to(device)
-    # label_total = label_train + label_test
+    if supervised == "supervised":
+        # 训练集embedding，计算权重
+        Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
+        Z_train = torch.tensor(Z_train).to(device)
+        matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
+        supervised_str = "supervised"
+    elif supervised == "unsupervised":
+        # 测试集计算权重
+        matrix_alpha = Matrix_Alpha_Unsupervised(tau=tau,
+                                                 k=1,
+                                                 Z=Z)
+        supervised_str = "unsupervised"
+    else:
+        matrix_alpha = torch.ones(Z.shape[0], Z.shape[1]) / Z.shape[1]
+        supervised_str = "average"
 
-    matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
-    data_matrix = (matrix_alpha, Z)
-    # torch.save(info, "tmp/info_" + category + ".pickle")
-    torch.save(data_matrix, "tmp/data_" + category + "_" + backbone_name + "_supervised.pickle")
+    # 加权embedding计算
+    matrix_alpha = matrix_alpha.unsqueeze(1)
+    X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1))
+    # 均值embedding计算
+    average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
+    X_average = np.array(torch.bmm(average_matrix, Z, out=None).squeeze(1))
+    # 存储为元组格式
+    data_matrix = (matrix_alpha, X)
+
+    # 存储权重矩阵与embedding
+    torch.save(data_matrix, "tmp/data_" + category + "_"
+               + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
+               str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
+               str(tau) + "_" + supervised_str + ".pickle")
     print("{:-^60}".format(category + ' end'))
     return data_matrix
 
 
 if __name__ == "__main__":
+    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
+    path = "/home/intern/code/mvtec_anomaly_detection"
+
     for category in _CLASSNAMES:
-        # data = make_category_data_unsupervised(category=category,
-        #                                        pretrain_embed_dimension=2048,
-        #                                        target_embed_dimension=4096,
-        #                                        backbone_names=["dino_deitsmall8_300ep"],
-        #                                        layers_to_extract_from=['blocks.10', 'blocks.11'],
-        #                                        patchsize=3,
-        #                                        tau=1)
-        data = make_category_data_supervised(category=category,
-                                             pretrain_embed_dimension=2048,
-                                             target_embed_dimension=4096,
-                                             backbone_names=["dino_deitsmall8_300ep"],
-                                             layers_to_extract_from=['blocks.10', 'blocks.11'],
-                                             patchsize=3,
-                                             train_ratio=1,
-                                             tau=1)
+        data = make_category_data(path=path_local,
+                                  category=category,
+                                  pretrain_embed_dimension=2048,
+                                  target_embed_dimension=4096,
+                                  backbone_names=["dino_deitsmall8_300ep"],
+                                  layers_to_extract_from=['blocks.10', 'blocks.11'],
+                                  patchsize=3,
+                                  tau=20,
+                                  supervised="unsupervised")
 
 
 

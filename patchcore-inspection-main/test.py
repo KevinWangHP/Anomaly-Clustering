@@ -43,7 +43,7 @@ def imshow(tensor, title=None):
     plt.pause(0.001)  # pause a bit so that plots are updated
 
 
-def visualize(info, alpha_PIL):
+def visualize(info, alpha_PIL, name):
     path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
     path = "/home/intern/code/mvtec_anomaly_detection"
     # 使用pillow库读取图片
@@ -64,9 +64,9 @@ def visualize(info, alpha_PIL):
         ax2.imshow(img, cmap='gray')
     ax3 = fig.add_subplot(133)
     ax3.imshow(alpha_PIL)
-    os.makedirs("out\\dino_deitsmall8_300ep_supervised", exist_ok=True)
+    os.makedirs("out\\" + name, exist_ok=True)
 
-    fname = os.path.join("out\\dino_deitsmall8_300ep_supervised", info["classname"][0] + "_" +
+    fname = os.path.join("out\\" + name, info["classname"][0] + "_" +
                          info["anomaly"][0] + ".png")
     plt.savefig(fname)
     print(f"{fname} saved.")
@@ -98,16 +98,23 @@ def best_map(L1, L2):
     return newL2
 
 
-def calculate_metrics(category, average):
+def calculate_metrics(category,
+                      pretrain_embed_dimension,
+                      target_embed_dimension,
+                      backbone_names,
+                      layers_to_extract_from,
+                      patchsize,
+                      train_ratio=1,
+                      tau=1,
+                      supervised="unsupervised"):
     unloader = transforms.ToPILImage()
-    unsupervised = "_unsupervised.pickle"
-    supervised = "_supervised.pickle"
-    model = "dino_deitsmall8_300ep"
-    # model = "wideresnet50"
-    matrix_alpha_path = "tmp/data_" + category + "_" + model + supervised
+    matrix_alpha_path = "tmp/data_" + category + "_" + \
+                        backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
+                        str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
+                        str(tau) + "_" + supervised + ".pickle"
     # matrix_alpha_path = "tmp/data_" + category + "_" + unsupervised
-    matrix_alpha, Z_list = torch.load(matrix_alpha_path, map_location='cpu')
-
+    matrix_alpha, X = torch.load(matrix_alpha_path, map_location='cpu')
+    matrix_alpha = matrix_alpha.squeeze(1)
     info = torch.load("tmp/info_" + category + ".pickle", map_location='cpu')
     # 数据可视化
     label_current = 'start'
@@ -120,13 +127,10 @@ def calculate_metrics(category, average):
         alpha_i_PIL = unloader(alpha_i/max_alpha)
         if label_current != info_i["anomaly"]:
             label_current = info_i["anomaly"]
-            visualize(info_i, alpha_i_PIL)
-    matrix_alpha = matrix_alpha.unsqueeze(1)
-    if average:
-        matrix_alpha = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
-
-    # 计算加权embedding
-    X = np.array(torch.bmm(matrix_alpha, Z_list, out=None).squeeze(1))
+            visualize(info_i, alpha_i_PIL,
+                      backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
+                      str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
+                      str(tau) + "_" + supervised)
 
     # 删除多标签实例
     X_one_category = np.zeros((1, X.shape[1]))
@@ -168,10 +172,17 @@ if __name__ == "__main__":
     writer = csv.writer(csv_file)
     # 用csv.writer()函数创建一个writer对象。
     writer.writerow(["Category", "NMI", "ARI", "F1"])
-    for i in _CLASSNAMES:
-        print("{:-^80}".format(i))
-        NMI, ARI, F1 = calculate_metrics(category=i, average=False)
-        writer.writerow([i, NMI, ARI, F1])
+    for category in _CLASSNAMES:
+        print("{:-^80}".format(category))
+        NMI, ARI, F1 = calculate_metrics(category=category,
+                                         pretrain_embed_dimension=2048,
+                                         target_embed_dimension=4096,
+                                         backbone_names=["dino_deitsmall8_300ep"],
+                                         layers_to_extract_from=['blocks.10', 'blocks.11'],
+                                         patchsize=3,
+                                         tau=20,
+                                         supervised="unsupervised")
+        writer.writerow([category, NMI, ARI, F1])
     csv_file.close()
     # 关闭文件
 
