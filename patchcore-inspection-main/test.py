@@ -130,6 +130,7 @@ def calculate_metrics(category,
                       train_ratio=1,
                       tau=1,
                       supervised="unsupervised"):
+
     unloader = transforms.ToPILImage()
     matrix_alpha_path = "out/" + backbone_names[0] + "_" + \
                         str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) + \
@@ -197,6 +198,13 @@ if __name__ == "__main__":
     ARI_TEXTURE = 0
     F1_TEXTURE = 0
     TEXTURE_TOTAL = 0
+    pretrain_embed_dimension = 2048
+    target_embed_dimension = 4096
+    backbone_names = ["dino_deitsmall8_300ep"]
+    layers_to_extract_from = ['blocks.10', 'blocks.11']
+    patchsize = 3
+    tau = 1
+    supervised = "unsupervised"
 
 
     import csv
@@ -210,13 +218,13 @@ if __name__ == "__main__":
     for category in _OBJECT:
         print("{:-^80}".format(category))
         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
-                                                         pretrain_embed_dimension=2048,
-                                                         target_embed_dimension=4096,
-                                                         backbone_names=["dino_deitsmall8_300ep"],
-                                                         layers_to_extract_from=['blocks.10', 'blocks.11'],
-                                                         patchsize=3,
-                                                         tau=20,
-                                                         supervised="unsupervised")
+                                                         pretrain_embed_dimension=pretrain_embed_dimension,
+                                                         target_embed_dimension=target_embed_dimension,
+                                                         backbone_names=backbone_names,
+                                                         layers_to_extract_from=layers_to_extract_from,
+                                                         patchsize=patchsize,
+                                                         tau=tau,
+                                                         supervised=supervised)
         writer.writerow([category, NMI, ARI, F1])
         NMI_OBJECT += NMI * len(label)
         ARI_OBJECT += ARI * len(label)
@@ -227,13 +235,13 @@ if __name__ == "__main__":
     for category in _TEXTURE:
         print("{:-^80}".format(category))
         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
-                                                         pretrain_embed_dimension=2048,
-                                                         target_embed_dimension=4096,
-                                                         backbone_names=["dino_deitsmall8_300ep"],
-                                                         layers_to_extract_from=['blocks.10', 'blocks.11'],
-                                                         patchsize=3,
-                                                         tau=20,
-                                                         supervised="unsupervised")
+                                                         pretrain_embed_dimension=pretrain_embed_dimension,
+                                                         target_embed_dimension=target_embed_dimension,
+                                                         backbone_names=backbone_names,
+                                                         layers_to_extract_from=layers_to_extract_from,
+                                                         patchsize=patchsize,
+                                                         tau=tau,
+                                                         supervised=supervised)
         writer.writerow([category, NMI, ARI, F1])
         NMI_TEXTURE += NMI * len(label)
         ARI_TEXTURE += ARI * len(label)

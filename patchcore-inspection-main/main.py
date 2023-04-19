@@ -334,7 +334,7 @@ def make_category_data(path,
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=1,
-        shuffle=False,
+        shuffle=True,
         num_workers=0,
         pin_memory=True,
     )
@@ -380,8 +380,9 @@ def make_category_data(path,
         anomaly_scorer_num_nn=anomaly_scorer_num_nn,
         nn_method=nn_method,
     )
-    info = []
 
+    # 获取图片标签、path等信息
+    info = []
     with tqdm(total=len(test_dataloader)) as progress:
         for image in test_dataloader:
             if isinstance(image, dict):
@@ -427,7 +428,7 @@ def make_category_data(path,
                + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
                str(tau) + "_" + supervised + ".pickle")
-    print("{:-^60}".format(category + ' end'))
+    print("{:-^80}".format(category + ' end'))
     return data_matrix
 
 
