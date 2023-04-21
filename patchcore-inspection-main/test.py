@@ -128,7 +128,7 @@ def calculate_metrics(category,
                       layers_to_extract_from,
                       patchsize,
                       train_ratio=1,
-                      tau=1,
+                      tau=0.1,
                       supervised="unsupervised"):
 
     unloader = transforms.ToPILImage()
@@ -150,6 +150,8 @@ def calculate_metrics(category,
         max_alpha = max(matrix_alpha[i])
         alpha_i = matrix_alpha[i].reshape(int(math.sqrt(len(matrix_alpha[i]))),
                                           int(math.sqrt(len(matrix_alpha[i])))).cpu().clone()
+        alpha_i = torch.nn.functional.interpolate(alpha_i.unsqueeze(0).unsqueeze(0), scale_factor=8,
+                                                     mode="nearest")[0].cpu().numpy()
         # we clone the tensor to not do changes on it
         alpha_i_PIL = unloader(alpha_i/max_alpha)
         if label_current != info_i["anomaly"]:
@@ -206,7 +208,6 @@ if __name__ == "__main__":
     tau = 1
     supervised = "unsupervised"
 
-
     import csv
     file_name = "result.csv"
     # 引用csv模块。
@@ -230,7 +231,6 @@ if __name__ == "__main__":
         ARI_OBJECT += ARI * len(label)
         F1_OBJECT += F1 * len(label)
         OBJECT_TOTAL += len(label)
-
 
     for category in _TEXTURE:
         print("{:-^80}".format(category))

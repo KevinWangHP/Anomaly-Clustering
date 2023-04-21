@@ -222,6 +222,15 @@ class VisionTransformer(nn.Module):
                 # return attention of the last block
                 return blk(x, return_attention=True)
 
+    def get_index_selfattention(self, x, index):
+        x = self.prepare_tokens(x)
+        for i, blk in enumerate(self.blocks):
+            if i < index:
+                x = blk(x)
+            else:
+                # return attention of the last block
+                return blk(x, return_attention=True)
+
     def get_intermediate_layers(self, x, n=1):
         x = self.prepare_tokens(x)
         # we return the output tokens from the `n` last blocks
