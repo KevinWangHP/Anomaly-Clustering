@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import math
 import PIL
 from PIL import Image
-import test
+import argparse
 
 from scipy.spatial import distance
 from torchvision import transforms
@@ -26,6 +26,9 @@ import patchcore.backbones
 import patchcore.common
 import patchcore.sampler
 import patchcore.datasets.mvtec as mvtec
+import test
+
+
 from munkres import Munkres
 LOGGER = logging.getLogger(__name__)
 import warnings
@@ -34,21 +37,22 @@ warnings.filterwarnings("ignore")
 device = "cpu"
 
 _CLASSNAMES = [
-    "bottle",
-    "cable",
-    "capsule",
-    "carpet",
-    "grid",
-    "hazelnut",
-    "leather",
-    "metal_nut",
-    "pill",
-    "screw",
-    "tile",
-    "toothbrush",
-    "transistor",
-    "wood",
-    "zipper",
+    # "bottle",
+    # "cable",
+    # "capsule",
+    # "carpet",
+    # "grid",
+    # "hazelnut",
+    # "leather",
+    # "metal_nut",
+    # "pill",
+    # "screw",
+    # "tile",
+    # "toothbrush",
+    # "transistor",
+    # "wood",
+    # "zipper",
+    "data"
 ]
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
@@ -330,8 +334,9 @@ def feature_map_visualize(path,
     loaded_patchcores = []
 
     # 加载数据集，dataloader
-    train_dataset = mvtec.MVTecDataset(source=path, classname=category)
-    test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST, classname=category)
+    train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=224, imagesize=224)
+    test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST,
+                                      classname=category, resize=224, imagesize=224)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=1,
@@ -440,15 +445,8 @@ def make_category_data(path,
     loaded_patchcores = []
 
     # 加载数据集，dataloader
-    train_dataset = mvtec.MVTecDataset(source=path, classname=category)
-    test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST, classname=category)
-    train_dataloader = torch.utils.data.DataLoader(
-        train_dataset,
-        batch_size=1,
-        shuffle=True,
-        num_workers=0,
-        pin_memory=True,
-    )
+    test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST,
+                                      classname=category, resize=224, imagesize=224)
     test_dataloader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=1,
@@ -492,7 +490,6 @@ def make_category_data(path,
         nn_method=nn_method,
     )
 
-    # 获取图片标签、path等信息
     info = []
     with tqdm(total=len(test_dataloader)) as progress:
         for image in test_dataloader:
@@ -502,13 +499,20 @@ def make_category_data(path,
                     del image['mask']
                     info.append(image)
             progress.update(1)
+    # torch.save(info, "info/info_data.pickle")
 
     # 测试集embedding
     Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
     Z = torch.tensor(Z).to(device)
-
-
     if supervised == "supervised":
+        train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=224, imagesize=224)
+        train_dataloader = torch.utils.data.DataLoader(
+            train_dataset,
+            batch_size=1,
+            shuffle=True,
+            num_workers=0,
+            pin_memory=True,
+        )
         # 训练集embedding，计算权重
         Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
         Z_train = torch.tensor(Z_train).to(device)
@@ -520,16 +524,14 @@ def make_category_data(path,
                                                  k=1,
                                                  Z=Z)
     else:
-        print("{:-^80}".format("Calculating Average Alpha Matrix"))
         matrix_alpha = torch.ones(Z.shape[0], Z.shape[1]) / Z.shape[1]
-
 
     # 加权embedding计算
     matrix_alpha = matrix_alpha.unsqueeze(1)
     X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1))
     # 均值embedding计算
-    # average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
-    # X_average = np.array(torch.bmm(average_matrix, Z, out=None).squeeze(1))
+    average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
+    X_average = np.array(torch.bmm(average_matrix, Z, out=None).squeeze(1))
     # 存储为元组格式
     data_matrix = (matrix_alpha, X)
 
@@ -537,53 +539,58 @@ def make_category_data(path,
     torch.save(data_matrix, "out/"
                + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-               str(tau) + "_" + supervised + "/data_" + category + "_"
-               + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
-               str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-               str(tau) + "_" + supervised + ".pickle")
+               str(float(tau)) + "_" + supervised + "/data_" + category + "_" + supervised + ".pickle")
     print("{:-^80}".format(category + ' end'))
     return data_matrix
 
 
 if __name__ == "__main__":
-    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
-    path = "/home/intern/code/mvtec_anomaly_detection"
+    parser = argparse.ArgumentParser('Calculating Matrix on MVTec AD')
+    parser.add_argument('--path', default='C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection',
+                        type=str, help="Path to the dataset.")
+    parser.add_argument('--backbone_names', nargs='+', default=["dino_deitsmall8_300ep"], help='Architecture.')
+    parser.add_argument('--layers_to_extract_from', nargs='+', default=["blocks.10", "blocks.11"])
+    parser.add_argument('--pretrain_embed_dimension', default=2048, type=int, help='Pretrained Embedding Dimension')
+    parser.add_argument('--target_embed_dimension', default=4096, type=int, help='Target Embedding Dimension')
+
+    parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
+
+    parser.add_argument("--patchsize", type=int, default=3, help="Patch Size.")
+    parser.add_argument("--tau", type=float, default=1, help="Tau.")
+    parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
+    parser.add_argument('--supervised', default='average', type=str, help="Supervised or not")
+    args = parser.parse_args()
+
+    print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
+
+    path = args.path
     # 参数赋值
-    pretrain_embed_dimension = 2048
-    target_embed_dimension = 2048
-    backbone_names = ["dino_deitsmall8_300ep"]
-    layers_to_extract_from = ['blocks.11']
-    patchsize = 3
-    tau = 1
-    supervised = "average"
-    train_ratio = 1
+    pretrain_embed_dimension = args.pretrain_embed_dimension
+    target_embed_dimension = args.target_embed_dimension
+    backbone_names = args.backbone_names
+    layers_to_extract_from = args.layers_to_extract_from
+    patchsize = args.patchsize
+    tau = args.tau
+    supervised = args.supervised
+    train_ratio = args.train_ratio
 
     name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
            str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
-           str(tau) + "_" + supervised
-    os.makedirs("out\\" + name, exist_ok=True)
+           str(float(tau)) + "_" + supervised
+    os.makedirs(args.output_dir+ "\\" + name, exist_ok=True)
 
     for category in _CLASSNAMES:
-        # data = make_category_data(path=path_local,
-        #                           category=category,
-        #                           pretrain_embed_dimension=pretrain_embed_dimension,
-        #                           target_embed_dimension=target_embed_dimension,
-        #                           backbone_names=backbone_names,
-        #                           layers_to_extract_from=layers_to_extract_from,
-        #                           patchsize=patchsize,
-        #                           tau=tau,
-        #                           train_ratio=train_ratio,
-        #                           supervised=supervised)
-        feature_map_visualize(path=path_local,
-                              category=category,
-                              pretrain_embed_dimension=pretrain_embed_dimension,
-                              target_embed_dimension=target_embed_dimension,
-                              backbone_names=backbone_names,
-                              layers_to_extract_from=layers_to_extract_from,
-                              patchsize=patchsize,
-                              tau=tau,
-                              train_ratio=train_ratio,
-                              supervised=supervised)
+        data = make_category_data(path=path,
+                                  category=category,
+                                  pretrain_embed_dimension=pretrain_embed_dimension,
+                                  target_embed_dimension=target_embed_dimension,
+                                  backbone_names=backbone_names,
+                                  layers_to_extract_from=layers_to_extract_from,
+                                  patchsize=patchsize,
+                                  tau=tau,
+                                  train_ratio=train_ratio,
+                                  supervised=supervised
+                                  )
 
 
 

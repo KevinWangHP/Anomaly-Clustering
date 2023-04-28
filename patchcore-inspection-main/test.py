@@ -1,3 +1,5 @@
+import shutil
+
 import torch
 import math
 import torchvision.transforms as transforms
@@ -15,21 +17,22 @@ os.environ["OMP_NUM_THREADS"] = '1'
 
 
 _CLASSNAMES = [
-    "bottle",
-    "cable",
-    "capsule",
-    "hazelnut",
-    "metal_nut",
-    "pill",
-    "screw",
-    "toothbrush",
-    "transistor",
-    "zipper",
-    "carpet",
-    "grid",
-    "leather",
-    "tile",
-    "wood",
+    # "bottle",
+    # "cable",
+    # "capsule",
+    # "hazelnut",
+    # "metal_nut",
+    # "pill",
+    # "screw",
+    # "toothbrush",
+    # "transistor",
+    # "zipper",
+    # "carpet",
+    # "grid",
+    # "leather",
+    # "tile",
+    # "wood",
+    "data"
 ]
 
 _OBJECT = [
@@ -54,7 +57,6 @@ _TEXTURE = [
 ]
 
 
-
 def imshow(tensor, title=None):
     unloader = transforms.ToPILImage()
     image = tensor.cpu().clone()  # we clone the tensor to not do changes on it
@@ -71,26 +73,34 @@ def visualize(info, alpha_PIL, name):
     path = "/home/intern/code/mvtec_anomaly_detection"
     # 使用pillow库读取图片
     fig = plt.figure(figsize=(12, 4))
-    process = transforms.Compose([transforms.Resize(256),
+    process = transforms.Compose([transforms.Resize([256, 256]),
                                   transforms.CenterCrop(224)])
 
-    img = Image.open(info["image_path"][0].replace(path, path_local))
+    img = Image.open(info["image_path"][0].replace(path, path_local)).convert("RGB")
     img = process(img)
     ax1 = fig.add_subplot(131)
     ax1.imshow(img)
-    if info["anomaly"][0] != "good":
-        img = Image.open(info["image_path"][0].replace("test", "ground_truth")
-                         .replace(".png", "_mask.png")
-                         .replace(path, path_local))
-        img = process(img)
-        ax2 = fig.add_subplot(132)
-        ax2.imshow(img, cmap='gray')
-    ax3 = fig.add_subplot(133)
-    ax3.imshow(alpha_PIL)
-    os.makedirs("out\\" + name, exist_ok=True)
+    if "mvtec_ad" in name:
+        if info["anomaly"][0] != "good":
+            img = Image.open(info["image_path"][0].replace("test", "ground_truth")
+                             .replace(".png", "_mask.png")
+                             .replace(path, path_local))
+            img = process(img)
+            ax2 = fig.add_subplot(132)
+            ax2.imshow(img, cmap='gray')
+        ax3 = fig.add_subplot(133)
+        ax3.imshow(alpha_PIL)
+        os.makedirs("out\\" + name + "\\visualize", exist_ok=True)
 
-    fname = os.path.join("out\\" + name, info["classname"][0] + "_" +
-                         info["anomaly"][0] + ".png")
+        fname = os.path.join("out\\" + name, "visualize", info["classname"][0] + "_" +
+                             info["anomaly"][0] + ".png")
+    else:
+        ax3 = fig.add_subplot(133)
+        ax3.imshow(alpha_PIL)
+        os.makedirs("out\\" + name + "\\visualize", exist_ok=True)
+
+        fname = os.path.join("out\\" + name, "visualize", info["classname"][0] + "_" + info["anomaly"][0] + "_" +
+                             info["image_name"][0].split(".bmp")[0].split("\\")[-1] + ".png")
     plt.savefig(fname)
     print(f"{fname} saved.")
     # plt.show()
@@ -129,16 +139,14 @@ def calculate_metrics(category,
                       patchsize,
                       train_ratio=1,
                       tau=0.1,
-                      supervised="unsupervised"):
+                      supervised="unsupervised",
+                      dataset="mvtec_ad"):
 
     unloader = transforms.ToPILImage()
-    matrix_alpha_path = "out/" + backbone_names[0] + "_" + \
+    matrix_alpha_path = "out/" + dataset + "/" + backbone_names[0] + "_" + \
                         str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) + \
-                        "_" + "_".join(layers_to_extract_from) + "_" + str(tau) + "_" + \
-                        supervised + "/data_" + category + "_" + backbone_names[0] + "_" + \
-                        str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) + \
-                        "_" + "_".join(layers_to_extract_from) + "_" + str(tau) + "_" + \
-                        supervised + ".pickle"
+                        "_" + "_".join(layers_to_extract_from) + "_" + str(float(tau)) + "_" + \
+                        supervised + "/data_" + category + "_" + supervised + ".pickle"
 
     matrix_alpha, X = torch.load(matrix_alpha_path, map_location='cpu')
     matrix_alpha = matrix_alpha.squeeze(1)
@@ -155,11 +163,12 @@ def calculate_metrics(category,
         # we clone the tensor to not do changes on it
         alpha_i_PIL = unloader(alpha_i/max_alpha)
         if label_current != info_i["anomaly"]:
+        # if supervised != "average":
             label_current = info_i["anomaly"]
             visualize(info_i, alpha_i_PIL,
-                      backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
+                      dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
                       str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-                      str(tau) + "_" + supervised)
+                      str(float(tau)) + "_" + supervised)
 
     # 删除多标签实例
     X_one_category = np.zeros((1, X.shape[1]))
@@ -178,6 +187,23 @@ def calculate_metrics(category,
 
     predict = model.fit_predict(X)
     predict = best_map(label, predict).astype(int)
+
+    # 将图片分类到不同文件夹
+    for i in range(len(info)):
+        predict_cur = predict[i]
+        old_file_path = info[i]["image_path"][0]
+        file_name = old_file_path.split("\\")[-1]
+        new_file_path = os.path.join("out\\" + dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
+                                     str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
+                                     str(float(tau)) + "_" + supervised, str(predict_cur))
+        # 如果路径不存在，则创建
+        if not os.path.exists(new_file_path):
+            os.makedirs(new_file_path)
+        # 新文件位置
+        new_file_path = os.path.join(new_file_path, info[i]["anomaly"][0] + "_" + file_name)
+        print(str(i) + " 正在将 " + old_file_path + " 复制到 " + new_file_path)
+        # 复制文件
+        shutil.copyfile(old_file_path, new_file_path)
 
     NMI = metrics.normalized_mutual_info_score(label, predict)
     ARI = metrics.adjusted_rand_score(label, predict)
@@ -203,10 +229,11 @@ if __name__ == "__main__":
     pretrain_embed_dimension = 2048
     target_embed_dimension = 4096
     backbone_names = ["dino_deitsmall8_300ep"]
+
     layers_to_extract_from = ['blocks.10', 'blocks.11']
     patchsize = 3
-    tau = 1
-    supervised = "unsupervised"
+    tau = 10
+    supervised = "supervised"
 
     import csv
     file_name = "result.csv"
@@ -215,7 +242,8 @@ if __name__ == "__main__":
     # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
     writer = csv.writer(csv_file)
     # 用csv.writer()函数创建一个writer对象。
-    writer.writerow(["Category", "NMI", "ARI", "F1"])
+    writer.writerow([supervised])
+    writer.writerow(["Tau", "NMI", "ARI", "F1"])
     for category in _OBJECT:
         print("{:-^80}".format(category))
         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
@@ -242,6 +270,7 @@ if __name__ == "__main__":
                                                          patchsize=patchsize,
                                                          tau=tau,
                                                          supervised=supervised)
+
         writer.writerow([category, NMI, ARI, F1])
         NMI_TEXTURE += NMI * len(label)
         ARI_TEXTURE += ARI * len(label)
@@ -265,6 +294,22 @@ if __name__ == "__main__":
     print(f'ARI: {ARI_TEXTURE}')
     print(f'F1:{F1_TEXTURE}\n')
     writer.writerow(["MVTec(texture)", NMI_TEXTURE, ARI_TEXTURE, F1_TEXTURE])
+
+    # for category in _CLASSNAMES:
+    #     print("{:-^80}".format(category))
+    #     tau_list = [4.0]
+    #     for tau in tau_list:
+    #         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
+    #                                                          pretrain_embed_dimension=pretrain_embed_dimension,
+    #                                                          target_embed_dimension=target_embed_dimension,
+    #                                                          backbone_names=backbone_names,
+    #                                                          layers_to_extract_from=layers_to_extract_from,
+    #                                                          patchsize=patchsize,
+    #                                                          tau=tau,
+    #                                                          supervised=supervised,
+    #                                                          dataset="newData")
+    #
+    #         writer.writerow([str(tau), NMI, ARI, F1])
 
     csv_file.close()
 
