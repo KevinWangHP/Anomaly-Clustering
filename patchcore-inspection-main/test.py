@@ -32,7 +32,7 @@ _CLASSNAMES = [
     # "leather",
     # "tile",
     # "wood",
-    "data"
+    # "data"
 ]
 
 _OBJECT = [
@@ -141,6 +141,9 @@ def calculate_metrics(category,
                       tau=0.1,
                       supervised="unsupervised",
                       dataset="mvtec_ad"):
+    path_local = "C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection"
+    path = "/home/intern/code/mvtec_anomaly_detection"
+
 
     unloader = transforms.ToPILImage()
     matrix_alpha_path = "out/" + dataset + "/" + backbone_names[0] + "_" + \
@@ -173,11 +176,15 @@ def calculate_metrics(category,
     # 删除多标签实例
     X_one_category = np.zeros((1, X.shape[1]))
     label = []
+    info_new = []
     for i in range(len(info)):
         if info[i]["anomaly"][0] != "combined":
+            info_new.append(info[i])
             label.append(info[i]["anomaly"][0])
             X_one_category = np.append(X_one_category, np.expand_dims(X[i], axis=0), axis=0)
     X = X_one_category[1:]
+    info = info_new
+    del info_new
     del X_one_category
 
     le = LabelEncoder()
@@ -191,16 +198,17 @@ def calculate_metrics(category,
     # 将图片分类到不同文件夹
     for i in range(len(info)):
         predict_cur = predict[i]
-        old_file_path = info[i]["image_path"][0]
-        file_name = old_file_path.split("\\")[-1]
+        info_i = info[i]
+        old_file_path = info_i["image_path"][0].replace(path, path_local)
+        file_name = old_file_path.split("/")[-1]
         new_file_path = os.path.join("out\\" + dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
                                      str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-                                     str(float(tau)) + "_" + supervised, str(predict_cur))
+                                     str(float(tau)) + "_" + supervised, info_i["classname"][0], str(predict_cur))
         # 如果路径不存在，则创建
         if not os.path.exists(new_file_path):
             os.makedirs(new_file_path)
         # 新文件位置
-        new_file_path = os.path.join(new_file_path, info[i]["anomaly"][0] + "_" + file_name)
+        new_file_path = os.path.join(new_file_path, info_i["anomaly"][0] + "_" + file_name)
         print(str(i) + " 正在将 " + old_file_path + " 复制到 " + new_file_path)
         # 复制文件
         shutil.copyfile(old_file_path, new_file_path)
@@ -232,8 +240,8 @@ if __name__ == "__main__":
 
     layers_to_extract_from = ['blocks.10', 'blocks.11']
     patchsize = 3
-    tau = 10
-    supervised = "supervised"
+    tau = 20
+    supervised = "unsupervised"
 
     import csv
     file_name = "result.csv"
@@ -243,7 +251,7 @@ if __name__ == "__main__":
     writer = csv.writer(csv_file)
     # 用csv.writer()函数创建一个writer对象。
     writer.writerow([supervised])
-    writer.writerow(["Tau", "NMI", "ARI", "F1"])
+    writer.writerow(["Category", "NMI", "ARI", "F1"])
     for category in _OBJECT:
         print("{:-^80}".format(category))
         NMI, ARI, F1, label, predict = calculate_metrics(category=category,

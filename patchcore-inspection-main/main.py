@@ -34,25 +34,26 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = "cpu"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 
 _CLASSNAMES = [
-    # "bottle",
-    # "cable",
-    # "capsule",
-    # "carpet",
-    # "grid",
-    # "hazelnut",
-    # "leather",
-    # "metal_nut",
-    # "pill",
-    # "screw",
-    # "tile",
-    # "toothbrush",
-    # "transistor",
-    # "wood",
-    # "zipper",
-    "data"
+    "bottle",
+    "cable",
+    "capsule",
+    "carpet",
+    "grid",
+    "hazelnut",
+    "leather",
+    "metal_nut",
+    "pill",
+    "screw",
+    "tile",
+    "toothbrush",
+    "transistor",
+    "wood",
+    "zipper",
+    # "data"
 ]
 
 IMAGENET_MEAN = [0.485, 0.456, 0.406]
