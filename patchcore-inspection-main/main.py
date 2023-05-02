@@ -34,8 +34,8 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 
 _CLASSNAMES = [
     "bottle",
@@ -288,10 +288,13 @@ def Weight_Distance_Supervised(Z, Z_train, i):
 
 def Matrix_Alpha_Unsupervised(tau, k, Z):
     print("{:-^80}".format("Calculating Unsupervised Alpha Matrix"))
+    tau_1 = 1 / tau
     matrix_alpha = torch.tensor([]).to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
-            alpha_i = k * torch.exp(1 / tau * Weight_Distance_Unsupervised(Z, i).unsqueeze(0))
+            weight_distance_matrix = Weight_Distance_Unsupervised(Z, i).unsqueeze(0)
+            weight_distance_matrix = weight_distance_matrix.double()
+            alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
             alpha_i = alpha_i / alpha_i.sum()
             matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
             progress.update(1)
@@ -300,11 +303,15 @@ def Matrix_Alpha_Unsupervised(tau, k, Z):
 
 def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
     print("{:-^80}".format("Calculating Supervised Alpha Matrix"))
+
+    tau_1 = 1 / tau
     Z_train = Z_train[:int(ratio * len(Z)), :, :]
     matrix_alpha = torch.tensor([]).to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
-            alpha_i = k * torch.exp(1 / tau * Weight_Distance_Supervised(Z, Z_train, i).unsqueeze(0))
+            weight_distance_matrix = Weight_Distance_Supervised(Z, Z_train, i).unsqueeze(0)
+            weight_distance_matrix = weight_distance_matrix.double()
+            alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
             alpha_i = alpha_i / alpha_i.sum()
             matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
             progress.update(1)
@@ -335,9 +342,9 @@ def feature_map_visualize(path,
     loaded_patchcores = []
 
     # 加载数据集，dataloader
-    train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=224, imagesize=224)
+    train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=256, imagesize=224)
     test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST,
-                                      classname=category, resize=224, imagesize=224)
+                                      classname=category, resize=256, imagesize=224)
     train_dataloader = torch.utils.data.DataLoader(
         train_dataset,
         batch_size=1,
@@ -447,7 +454,7 @@ def make_category_data(path,
 
     # 加载数据集，dataloader
     test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST,
-                                      classname=category, resize=224, imagesize=224)
+                                      classname=category, resize=256, imagesize=224)
     test_dataloader = torch.utils.data.DataLoader(
         test_dataset,
         batch_size=1,
@@ -506,7 +513,7 @@ def make_category_data(path,
     Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
     Z = torch.tensor(Z).to(device)
     if supervised == "supervised":
-        train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=224, imagesize=224)
+        train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=256, imagesize=224)
         train_dataloader = torch.utils.data.DataLoader(
             train_dataset,
             batch_size=1,
@@ -528,7 +535,8 @@ def make_category_data(path,
         matrix_alpha = torch.ones(Z.shape[0], Z.shape[1]) / Z.shape[1]
 
     # 加权embedding计算
-    matrix_alpha = matrix_alpha.unsqueeze(1)
+    matrix_alpha = matrix_alpha.unsqueeze(1).float()
+
     X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1))
     # 均值embedding计算
     average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
@@ -557,9 +565,9 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
 
     parser.add_argument("--patchsize", type=int, default=3, help="Patch Size.")
-    parser.add_argument("--tau", type=float, default=1, help="Tau.")
+    parser.add_argument("--tau", type=float, default=0.4, help="Tau.")
     parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
-    parser.add_argument('--supervised', default='average', type=str, help="Supervised or not")
+    parser.add_argument('--supervised', default='unsupervised', type=str, help="Supervised or not")
     args = parser.parse_args()
 
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
