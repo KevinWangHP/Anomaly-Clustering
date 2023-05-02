@@ -34,8 +34,8 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = "cpu"
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# device = "cpu"
 
 _CLASSNAMES = [
     "bottle",
@@ -165,7 +165,7 @@ class AnomalyClusteringCore(torch.nn.Module):
                                           feature.shape[2])
                 feature = feature.permute(0, 3, 1, 2)
             feature = torch.nn.LayerNorm([feature.shape[1], feature.shape[2],
-                                          feature.shape[3]])(feature)
+                                          feature.shape[3]]).to(device)(feature)
             features_new.append(feature)
         features = features_new
         # 添加Unit L2 Norm
@@ -289,7 +289,7 @@ def Weight_Distance_Supervised(Z, Z_train, i):
 def Matrix_Alpha_Unsupervised(tau, k, Z):
     print("{:-^80}".format("Calculating Unsupervised Alpha Matrix"))
     tau_1 = 1 / tau
-    matrix_alpha = torch.tensor([]).to(device)
+    matrix_alpha = torch.tensor([]).double().to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
             weight_distance_matrix = Weight_Distance_Unsupervised(Z, i).unsqueeze(0)
@@ -306,7 +306,7 @@ def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
 
     tau_1 = 1 / tau
     Z_train = Z_train[:int(ratio * len(Z)), :, :]
-    matrix_alpha = torch.tensor([]).to(device)
+    matrix_alpha = torch.tensor([]).double().to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
             weight_distance_matrix = Weight_Distance_Supervised(Z, Z_train, i).unsqueeze(0)
@@ -537,16 +537,16 @@ def make_category_data(path,
     # 加权embedding计算
     matrix_alpha = matrix_alpha.unsqueeze(1).float()
 
-    X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1))
+    X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1).cpu())
     # 均值embedding计算
-    average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
-    X_average = np.array(torch.bmm(average_matrix, Z, out=None).squeeze(1))
+    # average_matrix = torch.ones(matrix_alpha.shape) / matrix_alpha.shape[2]
+    # X_average = np.array(torch.bmm(average_matrix, Z, out=None).squeeze(1).cpu())
     # 存储为元组格式
+    dataset = "mvtec_ad"
     data_matrix = (matrix_alpha, X)
 
     # 存储权重矩阵与embedding
-    torch.save(data_matrix, "out/"
-               + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
+    torch.save(data_matrix, "out/" + dataset + "/" + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
                str(float(tau)) + "_" + supervised + "/data_" + category + "_" + supervised + ".pickle")
     print("{:-^80}".format(category + ' end'))
@@ -565,14 +565,15 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
 
     parser.add_argument("--patchsize", type=int, default=3, help="Patch Size.")
-    parser.add_argument("--tau", type=float, default=0.4, help="Tau.")
+    parser.add_argument("--tau", type=float, default=2, help="Tau.")
     parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
-    parser.add_argument('--supervised', default='unsupervised', type=str, help="Supervised or not")
+    parser.add_argument('--supervised', default='supervised', type=str, help="Supervised or not")
     args = parser.parse_args()
 
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
 
-    path = args.path
+    # path = args.path
+    path = "/home/intern/code/mvtec_anomaly_detection"
     # 参数赋值
     pretrain_embed_dimension = args.pretrain_embed_dimension
     target_embed_dimension = args.target_embed_dimension
@@ -582,24 +583,25 @@ if __name__ == "__main__":
     tau = args.tau
     supervised = args.supervised
     train_ratio = args.train_ratio
-
-    name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
-           str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
-           str(float(tau)) + "_" + supervised
-    os.makedirs(args.output_dir+ "\\" + name, exist_ok=True)
-
-    for category in _CLASSNAMES:
-        data = make_category_data(path=path,
-                                  category=category,
-                                  pretrain_embed_dimension=pretrain_embed_dimension,
-                                  target_embed_dimension=target_embed_dimension,
-                                  backbone_names=backbone_names,
-                                  layers_to_extract_from=layers_to_extract_from,
-                                  patchsize=patchsize,
-                                  tau=tau,
-                                  train_ratio=train_ratio,
-                                  supervised=supervised
-                                  )
+    dataset = "mvtec_ad"
+    for supervised in ["supervised", "unsupervised"]:
+        for tau in [0.6, 0.9, 1, 1.5, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]:
+            name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
+                   str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
+                   str(float(tau)) + "_" + supervised
+            os.makedirs(args.output_dir + "/" + dataset + "/" + name, exist_ok=True)
+            for category in _CLASSNAMES:
+                data = make_category_data(path=path,
+                                          category=category,
+                                          pretrain_embed_dimension=pretrain_embed_dimension,
+                                          target_embed_dimension=target_embed_dimension,
+                                          backbone_names=backbone_names,
+                                          layers_to_extract_from=layers_to_extract_from,
+                                          patchsize=patchsize,
+                                          tau=tau,
+                                          train_ratio=train_ratio,
+                                          supervised=supervised
+                                          )
 
 
 
