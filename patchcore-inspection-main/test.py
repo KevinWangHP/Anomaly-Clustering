@@ -230,14 +230,14 @@ if __name__ == "__main__":
     os.environ["OMP_NUM_THREADS"] = '1'
 
     pretrain_embed_dimension = 2048
-    target_embed_dimension = 2048
+    target_embed_dimension = 4096
     backbone_names = ["dino_deitsmall8_300ep"]
     # backbone_names = ["vit_base"]
 
     layers_to_extract_from = ['blocks.10', 'blocks.11']
     patchsize = 3
-    # tau_list = [0.2, 0.4, 0.8, 1, 1.5, 2, 3, 4, 8, 10, 12, 14, 18, 20]
-    tau_list = [0.2, 0.4, 0.8, 1]
+    tau_list = [0.2, 0.4, 0.6, 0.8, 0.9, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+    # tau_list = [0.2, 0.4, 0.8, 1]
     tau = 2
     supervised = "unsupervised"
 
@@ -251,8 +251,8 @@ if __name__ == "__main__":
     writer.writerow([supervised])
     writer.writerow(["Category", "NMI", "ARI", "F1"])
 
-    for i in range(12):
-        layers_to_extract_from = ["blocks."+str(i)]
+    for tau in tau_list:
+        # layers_to_extract_from = ["blocks."+str(i)]
         writer.writerow(["---"] * 4)
         writer.writerow(["TAU="+str(tau)])
         NMI_OBJECT = 0
