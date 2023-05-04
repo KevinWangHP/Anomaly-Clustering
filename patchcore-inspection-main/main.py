@@ -34,7 +34,7 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:2" if torch.cuda.is_available() else "cpu")
 # device = "cpu"
 
 _CLASSNAMES = [
@@ -154,6 +154,7 @@ class AnomalyClusteringCore(torch.nn.Module):
         features = [features[layer] for layer in self.layers_to_extract_from]
 
         # 添加3 * 3 AveragePooling
+        # 添加Unit L2 Norm
         features_new = []
         for feature in features:
             # feature = torch.nn.AvgPool2d(3, padding=1)(feature)
@@ -168,7 +169,6 @@ class AnomalyClusteringCore(torch.nn.Module):
                                           feature.shape[3]]).to(device)(feature)
             features_new.append(feature)
         features = features_new
-        # 添加Unit L2 Norm
         del features_new
 
 
@@ -288,13 +288,18 @@ def Weight_Distance_Supervised(Z, Z_train, i):
 
 def Matrix_Alpha_Unsupervised(tau, k, Z):
     print("{:-^80}".format("Calculating Unsupervised Alpha Matrix"))
-    tau_1 = 1 / tau
+
     matrix_alpha = torch.tensor([]).double().to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
             weight_distance_matrix = Weight_Distance_Unsupervised(Z, i).unsqueeze(0)
             weight_distance_matrix = weight_distance_matrix.double()
-            alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
+            if math.isclose(tau, 0):
+                alpha_i = (weight_distance_matrix == weight_distance_matrix.max(axis=1, keepdims=True)[0])\
+                    .to(dtype=torch.float64)
+            else:
+                tau_1 = 1 / tau
+                alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
             alpha_i = alpha_i / alpha_i.sum()
             matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
             progress.update(1)
@@ -304,14 +309,18 @@ def Matrix_Alpha_Unsupervised(tau, k, Z):
 def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
     print("{:-^80}".format("Calculating Supervised Alpha Matrix"))
 
-    tau_1 = 1 / tau
     Z_train = Z_train[:int(ratio * len(Z)), :, :]
     matrix_alpha = torch.tensor([]).double().to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
             weight_distance_matrix = Weight_Distance_Supervised(Z, Z_train, i).unsqueeze(0)
             weight_distance_matrix = weight_distance_matrix.double()
-            alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
+            if math.isclose(tau, 0):
+                alpha_i = (weight_distance_matrix == weight_distance_matrix.max(axis=1, keepdims=True)[0])\
+                            .to(dtype=torch.float64)
+            else:
+                tau_1 = 1 / tau
+                alpha_i = k * torch.exp(tau_1 * weight_distance_matrix)
             alpha_i = alpha_i / alpha_i.sum()
             matrix_alpha = torch.cat((matrix_alpha, alpha_i), dim=0)
             progress.update(1)
@@ -531,11 +540,12 @@ def make_category_data(path,
         matrix_alpha = Matrix_Alpha_Unsupervised(tau=tau,
                                                  k=1,
                                                  Z=Z)
+
     else:
         matrix_alpha = torch.ones(Z.shape[0], Z.shape[1]) / Z.shape[1]
 
     # 加权embedding计算
-    matrix_alpha = matrix_alpha.unsqueeze(1).float()
+    matrix_alpha = matrix_alpha.unsqueeze(1).float().to(device)
 
     X = np.array(torch.bmm(matrix_alpha, Z, out=None).squeeze(1).cpu())
     # 均值embedding计算
@@ -568,6 +578,7 @@ if __name__ == "__main__":
     parser.add_argument("--tau", type=float, default=2, help="Tau.")
     parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
     parser.add_argument('--supervised', default='supervised', type=str, help="Supervised or not")
+    parser.add_argument('--dataset', default='mvtec_ad', type=str, help="Dataset to use.")
     args = parser.parse_args()
 
     print("\n".join("%s: %s" % (k, str(v)) for k, v in sorted(dict(vars(args)).items())))
@@ -583,9 +594,11 @@ if __name__ == "__main__":
     tau = args.tau
     supervised = args.supervised
     train_ratio = args.train_ratio
-    dataset = "mvtec_ad"
+    dataset = args.dataset
+    tau_list = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+
     for supervised in ["supervised", "unsupervised"]:
-        for tau in [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]:
+        for tau in [0]:
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
                    str(float(tau)) + "_" + supervised

@@ -231,15 +231,15 @@ if __name__ == "__main__":
 
     pretrain_embed_dimension = 2048
     target_embed_dimension = 4096
-    backbone_names = ["dino_deitsmall8_300ep"]
-    # backbone_names = ["vit_base"]
+    # backbone_names = ["dino_deitsmall8_300ep"]
+    backbone_names = ["wideresnet50"]
 
-    layers_to_extract_from = ['blocks.10', 'blocks.11']
+    layers_to_extract_from = ['layer2', 'layer3']
     patchsize = 3
-    tau_list = [0.2, 0.4, 0.6, 0.8, 0.9, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+    tau_list = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     # tau_list = [0.2, 0.4, 0.8, 1]
     tau = 2
-    supervised = "unsupervised"
+    supervised = "supervised"
 
     import csv
     file_name = "result.csv"
