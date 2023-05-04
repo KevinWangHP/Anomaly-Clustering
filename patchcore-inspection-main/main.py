@@ -120,7 +120,7 @@ class AnomalyClusteringCore(torch.nn.Module):
 
         self.featuresampler = featuresampler
 
-    def embed(self, data):
+    def embed(self, data, supervised):
         print("{:-^80}".format("embedding"))
         if isinstance(data, torch.utils.data.DataLoader):
             features = []
@@ -133,13 +133,13 @@ class AnomalyClusteringCore(torch.nn.Module):
                         image = image["image"]
                     with torch.no_grad():
                         input_image = image.to(torch.float).to(self.device)
-                        features.append(self._embed(input_image))
+                        features.append(self._embed(input_image, supervised))
                         labels.append(is_anomaly)
                     progress.update(1)
             return features, labels
-        return self._embed(data)
+        return self._embed(data, supervised)
 
-    def _embed(self, images, detach=True, provide_patch_shapes=False):
+    def _embed(self, images, supervised, detach=True, provide_patch_shapes=False):
         """Returns feature embeddings for images."""
 
         def _detach(features):
@@ -152,7 +152,10 @@ class AnomalyClusteringCore(torch.nn.Module):
             features = self.forward_modules["feature_aggregator"](images)
 
         features = [features[layer] for layer in self.layers_to_extract_from]
-
+        # 如果时端到端的
+        if features == "final":
+            features = features[0].squeeze(2).squeeze(2)
+            return _detach(features)
         # 添加3 * 3 AveragePooling
         # 添加Unit L2 Norm
         features_new = []
@@ -519,8 +522,9 @@ def make_category_data(path,
     # torch.save(info, "info/info_data.pickle")
 
     # 测试集embedding
-    Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader)
+    Z, label_test = anomalyclusteringcore_instance.embed(test_dataloader, supervised)
     Z = torch.tensor(Z).to(device)
+
     if supervised == "supervised":
         train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=256, imagesize=224)
         train_dataloader = torch.utils.data.DataLoader(
@@ -531,7 +535,7 @@ def make_category_data(path,
             pin_memory=True,
         )
         # 训练集embedding，计算权重
-        Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader)
+        Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader, supervised)
         Z_train = torch.tensor(Z_train).to(device)
         matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
 
@@ -540,7 +544,6 @@ def make_category_data(path,
         matrix_alpha = Matrix_Alpha_Unsupervised(tau=tau,
                                                  k=1,
                                                  Z=Z)
-
     else:
         matrix_alpha = torch.ones(Z.shape[0], Z.shape[1]) / Z.shape[1]
 
@@ -567,10 +570,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Calculating Matrix on MVTec AD')
     parser.add_argument('--path', default='C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection',
                         type=str, help="Path to the dataset.")
-    parser.add_argument('--backbone_names', nargs='+', default=["wideresnet50"], help='Architecture.')
-    parser.add_argument('--layers_to_extract_from', nargs='+', default=["layer2", "layer3"])
+    parser.add_argument('--backbone_names', nargs='+', default=["dino_deitsmall8_300ep"], help='Architecture.')
+    parser.add_argument('--layers_to_extract_from', nargs='+', default=["norm"])
     parser.add_argument('--pretrain_embed_dimension', default=2048, type=int, help='Pretrained Embedding Dimension')
-    parser.add_argument('--target_embed_dimension', default=4096, type=int, help='Target Embedding Dimension')
+    parser.add_argument('--target_embed_dimension', default=2048, type=int, help='Target Embedding Dimension')
 
     parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
 
@@ -597,8 +600,8 @@ if __name__ == "__main__":
     dataset = args.dataset
     tau_list = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
 
-    for supervised in ["supervised", "unsupervised"]:
-        for tau in [0]:
+    for supervised in ["average", "supervised", "unsupervised"]:
+        for tau in [2]:
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
                    str(float(tau)) + "_" + supervised

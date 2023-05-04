@@ -232,19 +232,21 @@ if __name__ == "__main__":
     pretrain_embed_dimension = 2048
     target_embed_dimension = 4096
     # backbone_names = ["dino_deitsmall8_300ep"]
-    backbone_names = ["wideresnet50"]
+    backbone_names = ["dino_deitsmall8_300ep"]
 
-    layers_to_extract_from = ['layer2', 'layer3']
+    layers_to_extract_from = ['blocks.10', 'blocks.11']
     patchsize = 3
-    tau_list = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
-    # tau_list = [0.2, 0.4, 0.8, 1]
+    tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+    # tau_list = [1]
     tau = 2
     supervised = "supervised"
 
     import csv
-    file_name = "result.csv"
+    file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
+                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) \
+                + "_" + supervised + "_result.csv"
     # 引用csv模块。
-    csv_file = open('result.csv', 'w', newline='', encoding='gbk')
+    csv_file = open("result/" + file_name, 'w', newline='', encoding='gbk')
     # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
     writer = csv.writer(csv_file)
     # 用csv.writer()函数创建一个writer对象。
@@ -313,6 +315,8 @@ if __name__ == "__main__":
         print(f'ARI: {ARI_TEXTURE}')
         print(f'F1:{F1_TEXTURE}\n')
         writer.writerow(["MVTec(texture)", NMI_TEXTURE, ARI_TEXTURE, F1_TEXTURE])
+
+
 
     # for category in _CLASSNAMES:
     #     print("{:-^80}".format(category))
