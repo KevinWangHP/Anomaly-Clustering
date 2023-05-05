@@ -571,9 +571,9 @@ if __name__ == "__main__":
     parser.add_argument('--path', default='C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection',
                         type=str, help="Path to the dataset.")
     parser.add_argument('--backbone_names', nargs='+', default=["dino_deitsmall8_300ep"], help='Architecture.')
-    parser.add_argument('--layers_to_extract_from', nargs='+', default=["norm"])
+    parser.add_argument('--layers_to_extract_from', nargs='+', default=["blocks.10", "blocks.11"])
     parser.add_argument('--pretrain_embed_dimension', default=2048, type=int, help='Pretrained Embedding Dimension')
-    parser.add_argument('--target_embed_dimension', default=2048, type=int, help='Target Embedding Dimension')
+    parser.add_argument('--target_embed_dimension', default=4096, type=int, help='Target Embedding Dimension')
 
     parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
 
@@ -598,10 +598,10 @@ if __name__ == "__main__":
     supervised = args.supervised
     train_ratio = args.train_ratio
     dataset = args.dataset
-    tau_list = [0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+    tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.4, 1.8, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
 
-    for supervised in ["average", "supervised", "unsupervised"]:
-        for tau in [2]:
+    for supervised in ["supervised", "unsupervised"]:
+        for tau in tau_list:
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
                    str(float(tau)) + "_" + supervised

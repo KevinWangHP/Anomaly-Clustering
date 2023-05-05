@@ -197,21 +197,21 @@ def calculate_metrics(category,
 
     # 将图片分类到不同文件夹
     # for i in range(len(info)):
-        # predict_cur = predict[i]
-        # info_i = info[i]
-        # old_file_path = info_i["image_path"][0].replace(path, path_local)
-        # file_name = old_file_path.split("/")[-1]
-        # new_file_path = os.path.join("out\\" + dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
-        #                              str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-        #                              str(float(tau)) + "_" + supervised, info_i["classname"][0], str(predict_cur))
-        # # 如果路径不存在，则创建
-        # if not os.path.exists(new_file_path):
-        #     os.makedirs(new_file_path)
-        # # 新文件位置
-        # new_file_path = os.path.join(new_file_path, info_i["anomaly"][0] + "_" + file_name)
-        # print(str(i) + " 正在将 " + old_file_path + " 复制到 " + new_file_path)
-        # # 复制文件
-        # shutil.copyfile(old_file_path, new_file_path)
+    #     predict_cur = predict[i]
+    #     info_i = info[i]
+    #     old_file_path = info_i["image_path"][0].replace(path, path_local)
+    #     file_name = old_file_path.split("/")[-1]
+    #     new_file_path = os.path.join("out\\" + dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
+    #                                  str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
+    #                                  str(float(tau)) + "_" + supervised, info_i["classname"][0], str(predict_cur))
+    #     # 如果路径不存在，则创建
+    #     if not os.path.exists(new_file_path):
+    #         os.makedirs(new_file_path)
+    #     # 新文件位置
+    #     new_file_path = os.path.join(new_file_path, info_i["anomaly"][0] + "_" + file_name)
+    #     print(str(i) + " 正在将 " + old_file_path + " 复制到 " + new_file_path)
+    #     # 复制文件
+    #     shutil.copyfile(old_file_path, new_file_path)
 
 
 
@@ -240,102 +240,102 @@ if __name__ == "__main__":
     # tau_list = [1]
     tau = 2
     supervised = "supervised"
+    for supervised in ["unsupervised"]:
+        import csv
+        file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
+                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) \
+                    + "_" + supervised + "_result.csv"
+        # 引用csv模块。
+        csv_file = open("result/" + file_name, 'w', newline='', encoding='gbk')
+        # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
+        writer = csv.writer(csv_file)
+        # 用csv.writer()函数创建一个writer对象。
+        writer.writerow([supervised])
+        writer.writerow(["Category", "NMI", "ARI", "F1"])
 
-    import csv
-    file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
-                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) \
-                + "_" + supervised + "_result.csv"
-    # 引用csv模块。
-    csv_file = open("result/" + file_name, 'w', newline='', encoding='gbk')
-    # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
-    writer = csv.writer(csv_file)
-    # 用csv.writer()函数创建一个writer对象。
-    writer.writerow([supervised])
-    writer.writerow(["Category", "NMI", "ARI", "F1"])
+        for tau in tau_list:
+            # layers_to_extract_from = ["blocks."+str(i)]
+            writer.writerow(["---"] * 4)
+            writer.writerow(["TAU="+str(tau)])
+            NMI_OBJECT = 0
+            ARI_OBJECT = 0
+            F1_OBJECT = 0
+            OBJECT_TOTAL = 0
+            NMI_TEXTURE = 0
+            ARI_TEXTURE = 0
+            F1_TEXTURE = 0
+            TEXTURE_TOTAL = 0
+            for category in _OBJECT:
+                print("{:-^80}".format(category))
+                NMI, ARI, F1, label, predict = calculate_metrics(category=category,
+                                                                 pretrain_embed_dimension=pretrain_embed_dimension,
+                                                                 target_embed_dimension=target_embed_dimension,
+                                                                 backbone_names=backbone_names,
+                                                                 layers_to_extract_from=layers_to_extract_from,
+                                                                 patchsize=patchsize,
+                                                                 tau=tau,
+                                                                 supervised=supervised)
+                writer.writerow([category, NMI, ARI, F1])
+                NMI_OBJECT += NMI * len(label)
+                ARI_OBJECT += ARI * len(label)
+                F1_OBJECT += F1 * len(label)
+                OBJECT_TOTAL += len(label)
 
-    for tau in tau_list:
-        # layers_to_extract_from = ["blocks."+str(i)]
-        writer.writerow(["---"] * 4)
-        writer.writerow(["TAU="+str(tau)])
-        NMI_OBJECT = 0
-        ARI_OBJECT = 0
-        F1_OBJECT = 0
-        OBJECT_TOTAL = 0
-        NMI_TEXTURE = 0
-        ARI_TEXTURE = 0
-        F1_TEXTURE = 0
-        TEXTURE_TOTAL = 0
-        for category in _OBJECT:
-            print("{:-^80}".format(category))
-            NMI, ARI, F1, label, predict = calculate_metrics(category=category,
-                                                             pretrain_embed_dimension=pretrain_embed_dimension,
-                                                             target_embed_dimension=target_embed_dimension,
-                                                             backbone_names=backbone_names,
-                                                             layers_to_extract_from=layers_to_extract_from,
-                                                             patchsize=patchsize,
-                                                             tau=tau,
-                                                             supervised=supervised)
-            writer.writerow([category, NMI, ARI, F1])
-            NMI_OBJECT += NMI * len(label)
-            ARI_OBJECT += ARI * len(label)
-            F1_OBJECT += F1 * len(label)
-            OBJECT_TOTAL += len(label)
+            for category in _TEXTURE:
+                print("{:-^80}".format(category))
+                NMI, ARI, F1, label, predict = calculate_metrics(category=category,
+                                                                 pretrain_embed_dimension=pretrain_embed_dimension,
+                                                                 target_embed_dimension=target_embed_dimension,
+                                                                 backbone_names=backbone_names,
+                                                                 layers_to_extract_from=layers_to_extract_from,
+                                                                 patchsize=patchsize,
+                                                                 tau=tau,
+                                                                 supervised=supervised)
 
-        for category in _TEXTURE:
-            print("{:-^80}".format(category))
-            NMI, ARI, F1, label, predict = calculate_metrics(category=category,
-                                                             pretrain_embed_dimension=pretrain_embed_dimension,
-                                                             target_embed_dimension=target_embed_dimension,
-                                                             backbone_names=backbone_names,
-                                                             layers_to_extract_from=layers_to_extract_from,
-                                                             patchsize=patchsize,
-                                                             tau=tau,
-                                                             supervised=supervised)
+                writer.writerow([category, NMI, ARI, F1])
+                NMI_TEXTURE += NMI * len(label)
+                ARI_TEXTURE += ARI * len(label)
+                F1_TEXTURE += F1 * len(label)
+                TEXTURE_TOTAL += len(label)
 
-            writer.writerow([category, NMI, ARI, F1])
-            NMI_TEXTURE += NMI * len(label)
-            ARI_TEXTURE += ARI * len(label)
-            F1_TEXTURE += F1 * len(label)
-            TEXTURE_TOTAL += len(label)
+            NMI_OBJECT /= OBJECT_TOTAL
+            ARI_OBJECT /= OBJECT_TOTAL
+            F1_OBJECT /= OBJECT_TOTAL
+            print("MVTec(object)")
+            print(f'NMI: {NMI_OBJECT}')
+            print(f'ARI: {ARI_OBJECT}')
+            print(f'F1:{F1_OBJECT}\n')
+            writer.writerow(["MVTec(object)", NMI_OBJECT, ARI_OBJECT, F1_OBJECT])
 
-        NMI_OBJECT /= OBJECT_TOTAL
-        ARI_OBJECT /= OBJECT_TOTAL
-        F1_OBJECT /= OBJECT_TOTAL
-        print("MVTec(object)")
-        print(f'NMI: {NMI_OBJECT}')
-        print(f'ARI: {ARI_OBJECT}')
-        print(f'F1:{F1_OBJECT}\n')
-        writer.writerow(["MVTec(object)", NMI_OBJECT, ARI_OBJECT, F1_OBJECT])
-
-        NMI_TEXTURE /= TEXTURE_TOTAL
-        ARI_TEXTURE /= TEXTURE_TOTAL
-        F1_TEXTURE /= TEXTURE_TOTAL
-        print("MVTec(texture)")
-        print(f'NMI: {NMI_TEXTURE}')
-        print(f'ARI: {ARI_TEXTURE}')
-        print(f'F1:{F1_TEXTURE}\n')
-        writer.writerow(["MVTec(texture)", NMI_TEXTURE, ARI_TEXTURE, F1_TEXTURE])
+            NMI_TEXTURE /= TEXTURE_TOTAL
+            ARI_TEXTURE /= TEXTURE_TOTAL
+            F1_TEXTURE /= TEXTURE_TOTAL
+            print("MVTec(texture)")
+            print(f'NMI: {NMI_TEXTURE}')
+            print(f'ARI: {ARI_TEXTURE}')
+            print(f'F1:{F1_TEXTURE}\n')
+            writer.writerow(["MVTec(texture)", NMI_TEXTURE, ARI_TEXTURE, F1_TEXTURE])
 
 
 
-    # for category in _CLASSNAMES:
-    #     print("{:-^80}".format(category))
-    #     tau_list = [4.0]
-    #     for tau in tau_list:
-    #         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
-    #                                                          pretrain_embed_dimension=pretrain_embed_dimension,
-    #                                                          target_embed_dimension=target_embed_dimension,
-    #                                                          backbone_names=backbone_names,
-    #                                                          layers_to_extract_from=layers_to_extract_from,
-    #                                                          patchsize=patchsize,
-    #                                                          tau=tau,
-    #                                                          supervised=supervised,
-    #                                                          dataset="newData")
-    #
-    #         writer.writerow([str(tau), NMI, ARI, F1])
+        # for category in _CLASSNAMES:
+        #     print("{:-^80}".format(category))
+        #     tau_list = [4.0]
+        #     for tau in tau_list:
+        #         NMI, ARI, F1, label, predict = calculate_metrics(category=category,
+        #                                                          pretrain_embed_dimension=pretrain_embed_dimension,
+        #                                                          target_embed_dimension=target_embed_dimension,
+        #                                                          backbone_names=backbone_names,
+        #                                                          layers_to_extract_from=layers_to_extract_from,
+        #                                                          patchsize=patchsize,
+        #                                                          tau=tau,
+        #                                                          supervised=supervised,
+        #                                                          dataset="newData")
+        #
+        #         writer.writerow([str(tau), NMI, ARI, F1])
 
-    csv_file.close()
+        csv_file.close()
 
-    # 关闭文件
+        # 关闭文件
 
 
