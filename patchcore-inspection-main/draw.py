@@ -7,11 +7,13 @@ import os
 def draw_metrics(category, metrics, supervised_res, unsupervised_res, directory):
     os.makedirs(directory, exist_ok=True)
     xlist = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20, "avg"]
-    plt.plot(xlist, supervised_res)
-    plt.plot(xlist, unsupervised_res)
+    block_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "norm"]
+    plt.plot(xlist, supervised_res, label="supervised")
+    plt.plot(xlist, unsupervised_res, label="unsupervised")
     plt.xlabel('Tau')
     plt.ylabel(metrics)
     plt.title(category + '-' + metrics)
+    plt.legend()
     plt.savefig(directory + "/" + category + "_" + metrics)
     plt.show()
 
@@ -58,13 +60,34 @@ def draw(pretrain_embed_dimension,
 if __name__ == '__main__':
     pretrain_embed_dimension = 2048
     target_embed_dimension = 4096
-    backbone_names = ["vit_base"]
+    backbone_names = ["dino_deitsmall8_300ep"]
     layers_to_extract_from = ["blocks.10", "blocks.11"]
-    supervised = ["supervised"]
+    blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
+                   'blocks.6', 'blocks.7', 'blocks.8', 'blocks.9', 'blocks.10', 'blocks.11',
+                   'norm']
 
-    category = "MVTec(object)"
-    draw(pretrain_embed_dimension=pretrain_embed_dimension,
-         target_embed_dimension=target_embed_dimension,
-         backbone_names=backbone_names,
-         layers_to_extract_from=layers_to_extract_from,
-         category=category)
+    _CLASSNAMES = [
+        "bottle",
+        "cable",
+        "capsule",
+        "hazelnut",
+        "metal_nut",
+        "pill",
+        "screw",
+        "toothbrush",
+        "transistor",
+        "zipper",
+        "carpet",
+        "grid",
+        "leather",
+        "tile",
+        "wood",
+        "MVTec(object)",
+        "MVTec(texture)"
+    ]
+    for category in _CLASSNAMES:
+        draw(pretrain_embed_dimension=pretrain_embed_dimension,
+             target_embed_dimension=target_embed_dimension,
+             backbone_names=backbone_names,
+             layers_to_extract_from=layers_to_extract_from,
+             category=category)

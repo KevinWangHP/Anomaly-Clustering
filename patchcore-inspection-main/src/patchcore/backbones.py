@@ -64,7 +64,7 @@ def load(name):
     elif name == "dino_vitbase8":
         url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
     if url is not None:
-        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
+        device = torch.device("cuda:3") if torch.cuda.is_available() else torch.device("cpu")
         # build model
         # vit_tiny, vit_small, vit_base, patch_size=8, 16
         model = vits.__dict__['vit_small'](patch_size=patch_size, num_classes=0)

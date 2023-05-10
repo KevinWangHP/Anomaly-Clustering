@@ -230,20 +230,23 @@ if __name__ == "__main__":
     os.environ["OMP_NUM_THREADS"] = '1'
 
     pretrain_embed_dimension = 2048
-    target_embed_dimension = 4096
+    target_embed_dimension = 2048
     # backbone_names = ["dino_deitsmall8_300ep"]
     backbone_names = ["dino_deitsmall8_300ep"]
 
     layers_to_extract_from = ['blocks.10', 'blocks.11']
     patchsize = 3
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
+    blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
+                   'blocks.6', 'blocks.7', 'blocks.8', 'blocks.9', 'blocks.10', 'blocks.11',
+                   'norm']
     # tau_list = [1]
     tau = 2
     supervised = "supervised"
-    for supervised in ["unsupervised"]:
+    for supervised in ["supervised"]:
         import csv
         file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
-                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) \
+                    str(target_embed_dimension) + "_" + "_".join(blocks_list) \
                     + "_" + supervised + "_result.csv"
         # 引用csv模块。
         csv_file = open("result/" + file_name, 'w', newline='', encoding='gbk')
@@ -253,8 +256,8 @@ if __name__ == "__main__":
         writer.writerow([supervised])
         writer.writerow(["Category", "NMI", "ARI", "F1"])
 
-        for tau in tau_list:
-            # layers_to_extract_from = ["blocks."+str(i)]
+        for blocks in blocks_list:
+            layers_to_extract_from = [blocks]
             writer.writerow(["---"] * 4)
             writer.writerow(["TAU="+str(tau)])
             NMI_OBJECT = 0
