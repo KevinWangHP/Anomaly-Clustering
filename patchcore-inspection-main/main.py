@@ -152,7 +152,7 @@ class AnomalyClusteringCore(torch.nn.Module):
             features = self.forward_modules["feature_aggregator"](images)
 
         features = [features[layer] for layer in self.layers_to_extract_from]
-        # 如果时端到端的
+        # 如果是端到端的
         if features == "final":
             features = features[0].squeeze(2).squeeze(2)
             return _detach(features)
@@ -309,10 +309,9 @@ def Matrix_Alpha_Unsupervised(tau, k, Z):
     return matrix_alpha
 
 
-def Matrix_Alpha_Supervised(tau, k, Z, Z_train, ratio):
+def Matrix_Alpha_Supervised(tau, k, Z, Z_train):
     print("{:-^80}".format("Calculating Supervised Alpha Matrix"))
 
-    Z_train = Z_train[:int(ratio * len(Z)), :, :]
     matrix_alpha = torch.tensor([]).double().to(device)
     with tqdm(total=int(Z.shape[0])) as progress:
         for i in range(Z.shape[0]):
@@ -536,8 +535,9 @@ def make_category_data(path,
         )
         # 训练集embedding，计算权重
         Z_train, label_train = anomalyclusteringcore_instance.embed(train_dataloader, supervised)
-        Z_train = torch.tensor(Z_train).to(device)
-        matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train, ratio=train_ratio)
+        Z_train = torch.tensor(Z_train)
+        Z_train = Z_train[:int(train_ratio * len(Z)), :, :].to(device)
+        matrix_alpha = Matrix_Alpha_Supervised(tau=tau, k=1, Z=Z, Z_train=Z_train)
 
     elif supervised == "unsupervised":
         # 测试集计算权重
@@ -561,7 +561,7 @@ def make_category_data(path,
     # 存储权重矩阵与embedding
     torch.save(data_matrix, "out/" + dataset + "/" + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-               str(float(tau)) + "_" + supervised +
+               str(float(tau)) + "_" + str(float(train_ratio)) + "_" + supervised +
                "/data_" + category + "_" + supervised + ".pickle")
     print("{:-^80}".format(category + ' end'))
     return data_matrix
@@ -571,8 +571,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Calculating Matrix on MVTec AD')
     parser.add_argument('--path', default='C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection',
                         type=str, help="Path to the dataset.")
-    parser.add_argument('--backbone_names', nargs='+', default=["dino_vitbase8"], help='Architecture.')
-    parser.add_argument('--layers_to_extract_from', nargs='+', default=["blocks.10", "blocks.11"])
+    parser.add_argument('--backbone_names', nargs='+', default=["wideresnet50"], help='Architecture.')
+    parser.add_argument('--layers_to_extract_from', nargs='+', default=["layer2", "layer3"])
     parser.add_argument('--pretrain_embed_dimension', default=2048, type=int, help='Pretrained Embedding Dimension')
     parser.add_argument('--target_embed_dimension', default=4096, type=int, help='Target Embedding Dimension')
 
@@ -600,13 +600,13 @@ if __name__ == "__main__":
     train_ratio = args.train_ratio
     dataset = args.dataset
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
-
-    for supervised in ["unsupervised", "supervised"]:
-        for tau in tau_list:
-            # train_ratio = train_ratio
+    layer_list = [["layer1"], ["layer2"], ["layer3"], ["layer4"]]
+    for supervised in ["supervised"]:
+        for train_ratio in range(1, 14):
+            train_ratio = train_ratio / 10
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
-                   str(float(tau)) + "_" + supervised
+                   str(float(tau)) + "_" + str(float(train_ratio)) + "_" + supervised
             os.makedirs(args.output_dir + "/" + dataset + "/" + name, exist_ok=True)
             for category in _CLASSNAMES:
                 data = make_category_data(path=path,
@@ -620,8 +620,6 @@ if __name__ == "__main__":
                                           train_ratio=train_ratio,
                                           supervised=supervised
                                           )
-
-
 
 
 

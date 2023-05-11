@@ -36,8 +36,8 @@ _BACKBONES = {
     "vit_base": 'timm.create_model("vit_base_patch8_224", pretrained=True)',
     "vit_large": 'timm.create_model("vit_large_patch8_224", pretrained=True)',
     "vit_r50": 'timm.create_model("vit_large_r50_s32_224", pretrained=True)',
-    "vit_deit_base": 'timm.create_model("deit_base_patch16_224", pretrained=True)',
-    "vit_deit_distilled": 'timm.create_model("deit_base_distilled_patch16_224", pretrained=True)',
+    "vit_deit_base": 'timm.create_model("deit_base_patch8_224", pretrained=True)',
+    "vit_deit_distilled": 'timm.create_model("deit_base_distilled_patch8_224", pretrained=True)',
     "vit_swin_base": 'timm.create_model("swin_base_patch4_window7_224", pretrained=True)',
     "vit_swin_large": 'timm.create_model("swin_large_patch4_window7_224", pretrained=True)',
     "efficientnet_b7": 'timm.create_model("tf_efficientnet_b7", pretrained=True)',
@@ -64,10 +64,10 @@ def load(name):
     elif name == "dino_vitbase8":
         url = "dino_vitbase8_pretrain/dino_vitbase8_pretrain.pth"
     if url is not None:
-        device = torch.device("cuda:3") if torch.cuda.is_available() else torch.device("cpu")
+        device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         # build model
         # vit_tiny, vit_small, vit_base, patch_size=8, 16
-        model = vits.__dict__['vit_small'](patch_size=patch_size, num_classes=0)
+        model = vits.__dict__['vit_base'](patch_size=patch_size, num_classes=0)
         for p in model.parameters():
             p.requires_grad = False
         model.eval()

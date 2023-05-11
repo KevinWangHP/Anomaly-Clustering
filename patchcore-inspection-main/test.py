@@ -232,18 +232,20 @@ if __name__ == "__main__":
     pretrain_embed_dimension = 2048
     target_embed_dimension = 2048
     # backbone_names = ["dino_deitsmall8_300ep"]
-    backbone_names = ["dino_deitsmall8_300ep"]
+    backbone_names = ["wideresnet50"]
 
-    layers_to_extract_from = ['blocks.10', 'blocks.11']
+    layers_to_extract_from = ['avgpool']
     patchsize = 3
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
                    'blocks.6', 'blocks.7', 'blocks.8', 'blocks.9', 'blocks.10', 'blocks.11',
                    'norm']
+
+    blocks_list = ["layer1", "layer2", "layer3", "layer4"]
     # tau_list = [1]
     tau = 2
     supervised = "supervised"
-    for supervised in ["supervised"]:
+    for supervised in ["average", "unsupervised", "supervised"]:
         import csv
         file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                     str(target_embed_dimension) + "_" + "_".join(blocks_list) \
