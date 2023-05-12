@@ -7,10 +7,12 @@ import os
 def draw_metrics(category, metrics, supervised_res, unsupervised_res, average_res, directory):
     os.makedirs(directory, exist_ok=True)
     xlist = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20, "avg"]
+    train_ratio_list = [i/10 for i in range(1, 14)]
     # block_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "norm"]
     blocks_list = ["layer1", "layer2", "layer3", "layer4", "avgpool"]
-    plt.plot(blocks_list, supervised_res, lw=1, c='blue', marker='s', ms=10, label="supervised")
-    plt.plot(blocks_list, unsupervised_res, lw=1, c='orange', marker='o', ms=10, label="unsupervised")
+    plt.plot(train_ratio_list, supervised_res, lw=1, c='blue', marker='s', ms=10, label="supervised")
+    # plt.plot(blocks_list, unsupervised_res, lw=1, c='orange', marker='o', ms=10, label="unsupervised")
+    # plt.plot(blocks_list, average_res, lw=1, c='red', marker='o', ms=10, label="average")
     plt.tick_params("x", labelsize=12)
     plt.tick_params("y", labelsize=20)
     # plt.plot(blocks_list, average_res, label="average")

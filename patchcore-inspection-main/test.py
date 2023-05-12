@@ -149,7 +149,7 @@ def calculate_metrics(category,
     matrix_alpha_path = "out/" + dataset + "/" + backbone_names[0] + "_" + \
                         str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) + \
                         "_" + "_".join(layers_to_extract_from) + "_" + str(float(tau)) + "_" + \
-                        supervised + "/data_" + category + "_" + supervised + ".pickle"
+                        str(float(train_ratio)) + "_" + supervised + "/data_" + category + "_" + supervised + ".pickle"
 
     matrix_alpha, X = torch.load(matrix_alpha_path, map_location='cpu')
     matrix_alpha = matrix_alpha.squeeze(1)
@@ -168,10 +168,10 @@ def calculate_metrics(category,
         if label_current != info_i["anomaly"]:
         # if supervised != "average":
             label_current = info_i["anomaly"]
-            visualize(info_i, alpha_i_PIL,
-                      dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
-                      str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-                      str(float(tau)) + "_" + supervised)
+            # visualize(info_i, alpha_i_PIL,
+            #           dataset + "/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" +
+            #           str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
+            #           str(float(tau)) + "_" + supervised)
 
     # 删除多标签实例
     X_one_category = np.zeros((1, X.shape[1]))
@@ -230,11 +230,11 @@ if __name__ == "__main__":
     os.environ["OMP_NUM_THREADS"] = '1'
 
     pretrain_embed_dimension = 2048
-    target_embed_dimension = 2048
+    target_embed_dimension = 4096
     # backbone_names = ["dino_deitsmall8_300ep"]
     backbone_names = ["wideresnet50"]
 
-    layers_to_extract_from = ['avgpool']
+    layers_to_extract_from = ['layer2', 'layer3']
     patchsize = 3
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
@@ -245,11 +245,11 @@ if __name__ == "__main__":
     # tau_list = [1]
     tau = 2
     supervised = "supervised"
-    for supervised in ["average", "unsupervised", "supervised"]:
+    for supervised in ["supervised"]:
         import csv
         file_name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
-                    str(target_embed_dimension) + "_" + "_".join(blocks_list) \
-                    + "_" + supervised + "_result.csv"
+                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) \
+                    + "_" + supervised + "_train_ratio_result.csv"
         # 引用csv模块。
         csv_file = open("result/" + file_name, 'w', newline='', encoding='gbk')
         # 调用open()函数打开csv文件，传入参数：文件名“demo.csv”、写入模式“w”、newline=''、encoding='gbk'
@@ -258,10 +258,10 @@ if __name__ == "__main__":
         writer.writerow([supervised])
         writer.writerow(["Category", "NMI", "ARI", "F1"])
 
-        for blocks in blocks_list:
-            layers_to_extract_from = [blocks]
+        for train_ratio in range(1, 14):
+            train_ratio = train_ratio / 10
             writer.writerow(["---"] * 4)
-            writer.writerow(["TAU="+str(tau)])
+            writer.writerow(["train_ratio="+str(train_ratio)])
             NMI_OBJECT = 0
             ARI_OBJECT = 0
             F1_OBJECT = 0
@@ -279,7 +279,8 @@ if __name__ == "__main__":
                                                                  layers_to_extract_from=layers_to_extract_from,
                                                                  patchsize=patchsize,
                                                                  tau=tau,
-                                                                 supervised=supervised)
+                                                                 supervised=supervised,
+                                                                 train_ratio=train_ratio)
                 writer.writerow([category, NMI, ARI, F1])
                 NMI_OBJECT += NMI * len(label)
                 ARI_OBJECT += ARI * len(label)
@@ -295,7 +296,8 @@ if __name__ == "__main__":
                                                                  layers_to_extract_from=layers_to_extract_from,
                                                                  patchsize=patchsize,
                                                                  tau=tau,
-                                                                 supervised=supervised)
+                                                                 supervised=supervised,
+                                                                 train_ratio=train_ratio)
 
                 writer.writerow([category, NMI, ARI, F1])
                 NMI_TEXTURE += NMI * len(label)

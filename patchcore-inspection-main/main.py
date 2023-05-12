@@ -60,6 +60,17 @@ IMAGENET_MEAN = [0.485, 0.456, 0.406]
 IMAGENET_STD = [0.229, 0.224, 0.225]
 
 
+# fix random seed
+def same_seeds(seed):
+    torch.manual_seed(seed)  # 固定随机种子（CPU）
+    if torch.cuda.is_available():  # 固定随机种子（GPU)
+        torch.cuda.manual_seed(seed)  # 为当前GPU设置
+        torch.cuda.manual_seed_all(seed)  # 为所有GPU设置
+    np.random.seed(seed)  # 保证后续使用random函数时，产生固定的随机数
+    torch.backends.cudnn.benchmark = False  # GPU、网络结构固定，可设置为True
+    torch.backends.cudnn.deterministic = True  # 固定网络结构
+
+
 class AnomalyClusteringCore(torch.nn.Module):
     def __init__(self, device):
         """PatchCore anomaly detection class."""
@@ -351,7 +362,7 @@ def feature_map_visualize(path,
     backbone_name = backbone_names[0]
 
     loaded_patchcores = []
-
+    same_seeds(2023)
     # 加载数据集，dataloader
     train_dataset = mvtec.MVTecDataset(source=path, classname=category, resize=256, imagesize=224)
     test_dataset = mvtec.MVTecDataset(source=path, split=mvtec.DatasetSplit.TEST,
@@ -579,7 +590,7 @@ if __name__ == "__main__":
     parser.add_argument('--output_dir', default="out", help='Path where to save segmentations')
 
     parser.add_argument("--patchsize", type=int, default=3, help="Patch Size.")
-    parser.add_argument("--tau", type=float, default=2, help="Tau.")
+    parser.add_argument("--tau", type=float, default=1, help="Tau.")
     parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
     parser.add_argument('--supervised', default='supervised', type=str, help="Supervised or not")
     parser.add_argument('--dataset', default='mvtec_ad', type=str, help="Dataset to use.")
@@ -602,7 +613,7 @@ if __name__ == "__main__":
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     layer_list = [["layer1"], ["layer2"], ["layer3"], ["layer4"]]
     for supervised in ["supervised"]:
-        for train_ratio in range(9, 14):
+        for train_ratio in range(1, 14):
             train_ratio = train_ratio / 10
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
