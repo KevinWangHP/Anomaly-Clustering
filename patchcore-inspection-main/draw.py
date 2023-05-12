@@ -9,13 +9,13 @@ def draw_metrics(category, metrics, supervised_res, unsupervised_res, average_re
     xlist = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20, "avg"]
     # block_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, "norm"]
     blocks_list = ["layer1", "layer2", "layer3", "layer4", "avgpool"]
-    plt.plot(xlist, supervised_res[:-1], lw=1, c='blue', marker='s', ms=10, label="supervised")
-    plt.plot(xlist, unsupervised_res[:-1], lw=1, c='orange', marker='o', ms=10, label="unsupervised")
+    plt.plot(blocks_list, supervised_res, lw=1, c='blue', marker='s', ms=10, label="supervised")
+    plt.plot(blocks_list, unsupervised_res, lw=1, c='orange', marker='o', ms=10, label="unsupervised")
     plt.tick_params("x", labelsize=12)
     plt.tick_params("y", labelsize=20)
     # plt.plot(blocks_list, average_res, label="average")
-    plt.axhline(supervised_res[-1], lw=1, c="red", label="avgpool")
-    plt.xlabel('Tau', fontsize=20)
+    # plt.axhline(supervised_res[-1], lw=1, c="red", label="avgpool")
+    plt.xlabel('Layer', fontsize=20)
     # plt.ylabel(metrics, fontsize=20, rotation=0)
     plt.title(category + '-' + metrics, fontsize=40)
     plt.legend(prop={'size': 10})
@@ -68,7 +68,7 @@ def draw(pretrain_embed_dimension,
 
 if __name__ == '__main__':
     pretrain_embed_dimension = 2048
-    target_embed_dimension = 4096
+    target_embed_dimension = 2048
     backbone_names = ["wideresnet50"]
     layers_to_extract_from = ["layer2", "layer3"]
     # blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
@@ -99,5 +99,5 @@ if __name__ == '__main__':
         draw(pretrain_embed_dimension=pretrain_embed_dimension,
              target_embed_dimension=target_embed_dimension,
              backbone_names=backbone_names,
-             layers_to_extract_from=layers_to_extract_from,
+             layers_to_extract_from=blocks_list,
              category=category)

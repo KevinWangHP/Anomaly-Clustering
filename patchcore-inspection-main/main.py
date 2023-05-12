@@ -602,7 +602,7 @@ if __name__ == "__main__":
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     layer_list = [["layer1"], ["layer2"], ["layer3"], ["layer4"]]
     for supervised in ["supervised"]:
-        for train_ratio in range(1, 14):
+        for train_ratio in range(9, 14):
             train_ratio = train_ratio / 10
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
