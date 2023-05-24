@@ -34,7 +34,7 @@ LOGGER = logging.getLogger(__name__)
 import warnings
 warnings.filterwarnings("ignore")
 
-device = torch.device("cuda:3" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # device = "cpu"
 
 _CLASSNAMES = [
@@ -572,7 +572,7 @@ def make_category_data(path,
     # 存储权重矩阵与embedding
     torch.save(data_matrix, "out/" + dataset + "/" + backbone_name + "_" + str(pretrain_embed_dimension) + "_" +
                str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" +
-               str(float(tau)) + "_" + str(float(train_ratio)) + "_" + supervised +
+               str(float(tau)) + "_" + supervised +
                "/data_" + category + "_" + supervised + ".pickle")
     print("{:-^80}".format(category + ' end'))
     return data_matrix
@@ -582,8 +582,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser('Calculating Matrix on MVTec AD')
     parser.add_argument('--path', default='C:\\Users\\86155\\Desktop\\STUDY\\Graduate_design\\code\\mvtec_anomaly_detection',
                         type=str, help="Path to the dataset.")
-    parser.add_argument('--backbone_names', nargs='+', default=["wideresnet50"], help='Architecture.')
-    parser.add_argument('--layers_to_extract_from', nargs='+', default=["layer2", "layer3"])
+    parser.add_argument('--backbone_names', nargs='+', default=["dino_vitbase8"], help='Architecture.')
+    parser.add_argument('--layers_to_extract_from', nargs='+', default=["blocks.10", "blocks.11"])
     parser.add_argument('--pretrain_embed_dimension', default=2048, type=int, help='Pretrained Embedding Dimension')
     parser.add_argument('--target_embed_dimension', default=4096, type=int, help='Target Embedding Dimension')
 
@@ -592,7 +592,7 @@ if __name__ == "__main__":
     parser.add_argument("--patchsize", type=int, default=3, help="Patch Size.")
     parser.add_argument("--tau", type=float, default=1, help="Tau.")
     parser.add_argument("--train_ratio", type=float, default=1, help="The ratio of train data.")
-    parser.add_argument('--supervised', default='supervised', type=str, help="Supervised or not")
+    parser.add_argument('--supervised', default='average', type=str, help="Supervised or not")
     parser.add_argument('--dataset', default='mvtec_ad', type=str, help="Dataset to use.")
     args = parser.parse_args()
 
@@ -612,12 +612,12 @@ if __name__ == "__main__":
     dataset = args.dataset
     tau_list = [0, 0.2, 0.4, 0.6, 0.8, 1, 1.5, 2, 2.5, 3, 4, 8, 10, 12, 14, 18, 20]
     layer_list = [["layer1"], ["layer2"], ["layer3"], ["layer4"]]
-    for supervised in ["supervised"]:
-        for train_ratio in range(1, 14):
+    for supervised in ["average"]:
+        for train_ratio in range(10, 11):
             train_ratio = train_ratio / 10
             name = backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + \
                    str(target_embed_dimension) + "_" + "_".join(layers_to_extract_from) + "_" + \
-                   str(float(tau)) + "_" + str(float(train_ratio)) + "_" + supervised
+                   str(float(tau)) +  "_" + supervised
             os.makedirs(args.output_dir + "/" + dataset + "/" + name, exist_ok=True)
             for category in _CLASSNAMES:
                 data = make_category_data(path=path,

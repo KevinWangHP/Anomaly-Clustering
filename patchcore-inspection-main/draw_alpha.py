@@ -27,14 +27,17 @@ _TEXTURE = [
     "wood",
 ]
 
-picture_index = "图3-10"
+picture_index = "图4-3"
 unloader = transforms.ToPILImage()
-backbone_name = "wideresnet50"
+backbone_name = "dino_deitsmall8_300ep"
 pretrain_embed_dimension = 2048
 target_embed_dimension = 2048
-layers_to_extract_from = ["layer2", "layer3"]
+layers_to_extract_from = ["blocks.10", "blocks.11"]
 layer_list = [["layer1"], ["layer2"],
               ["layer3"], ["layer4"]]
+blocks_list = [['blocks.0'], ['blocks.1'], ['blocks.2'], ['blocks.3'], ['blocks.4'], ['blocks.5'],
+               ['blocks.6'], ['blocks.7'], ['blocks.8'], ['blocks.9'], ['blocks.10'], ['blocks.11'],
+              ]
 tau_list = [2]
 tau = 2
 supervised = "supervised"
@@ -46,9 +49,11 @@ visualize_list = ["bottle_broken_large", "capsule_poke", "carpet_color", "hazeln
 # visualize_list = ["metal_nut_scratch", "metal_nut_bent", "metal_nut_color",
 #                   "metal_nut_flip", "grid_broken", "grid_glue", "grid_bent",
 #                   "grid_metal_contamination", "grid_thread"]
-for train_ratio in range(20, 21):
-    train_ratio = train_ratio / 10
-    for layers_to_extract_from in layer_list:
+
+train_ratio_list = [0.1, 0.5, 1.0, 1.3]
+
+for train_ratio in [1]:
+    for layers_to_extract_from in blocks_list:
         for category in _OBJECT+_TEXTURE:
             matrix_alpha_path = "out/mvtec_ad/" + backbone_name + "_" + \
                                 str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) + \
