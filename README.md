@@ -1,5 +1,5 @@
 # Anomaly Clustering
-
+Please see Anomaly Clustering folder which is the code integration of the whole project.
 
 Algorithm implementation using Pytorch for 
 [Anomaly Clustering: Grouping Images into Coherent Clusters of Anomaly Types](https://openaccess.thecvf.com/content/WACV2023/html/Sohn_Anomaly_Clustering_Grouping_Images_Into_Coherent_Clusters_of_Anomaly_Types_WACV_2023_paper.html). 
