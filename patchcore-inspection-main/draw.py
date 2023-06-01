@@ -13,8 +13,8 @@ def draw_metrics(category, metrics, supervised_res, unsupervised_res,
     train_ratio_list = [i/10 for i in range(0, 14)]
     block_list = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
     blocks_list = ["layer1", "layer2", "layer3", "layer4", "avgpool"]
-    plt.plot(block_list, supervised_res[:12], lw=1, c='blue', marker='s', ms=10, label="DINO_supervised")
-    plt.plot(block_list, unsupervised_res[:12], lw=1, c='red', marker='o', ms=10, label="DINO_unsupervised")
+    plt.plot(train_ratio_list, supervised_res, lw=1, c='blue', marker='s', ms=10, label="MVTec(object)")
+    plt.plot(train_ratio_list, unsupervised_res, lw=1, c='orange', marker='o', ms=10, label="MVTec(texture)")
     # plt.plot(xlist, supervised_res_vit, lw=1, c='orange', marker='s', ms=5, label="VIT_supervised")
     # plt.plot(xlist, unsupervised_res_vit, lw=1, c='orange', marker='o', ms=5, label="VIT_unsupervised", linestyle='--')
     # plt.plot(xlist, supervised_res_WRN50[:len(xlist)], lw=1, c='red', marker='s', ms=5, label="WRN50_supervised")
@@ -23,13 +23,13 @@ def draw_metrics(category, metrics, supervised_res, unsupervised_res,
     plt.tick_params("x", labelsize=12)
     plt.tick_params("y", labelsize=20)
     # plt.plot(blocks_list, average_res, label="average")
-    # plt.axhline(supervised_res[0], lw=1, linestyle='--', c="red", label="unsupervised")
-    # plt.axhline(unsupervised_res[0], lw=1, linestyle='--', c="red", label="unsupervised")
-    plt.xlabel('Layer', fontsize=15)
+    plt.axhline(supervised_res[0], lw=1, linestyle='--', c="red", label="unsupervised")
+    plt.axhline(unsupervised_res[0], lw=1, linestyle='--', c="red", label="unsupervised")
+    plt.xlabel('Train Ratio', fontsize=15)
     # plt.ylabel(metrics, fontsize=20, rotation=0)
     plt.title(category + '-' + metrics, fontsize=40)
     plt.legend(prop={'size': 10})
-    plt.savefig(directory + "/" + category + "_" + metrics)
+    plt.savefig("draft/图3-4/" + category + "_" + metrics)
     plt.show()
 
 
@@ -54,9 +54,9 @@ def collect_data(backbone_name,
                  layers_to_extract_from,
                  category):
     supervised_name = backbone_name+ "_" + str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) \
-                      + "_" + "_".join(layers_to_extract_from) + "_" + "supervised" + "_result.csv"
+                      + "_" + "_".join(layers_to_extract_from) + "_" + "supervised" + "_train_ratio_result.csv"
     unsupervised_name = backbone_name + "_" + str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) \
-                        + "_" + "_".join(layers_to_extract_from) + "_" + "unsupervised" + "_result.csv"
+                        + "_" + "_".join(layers_to_extract_from) + "_" + "supervised" + "_train_ratio_result.csv"
     average_name = backbone_name + "_" + str(pretrain_embed_dimension) + "_" + str(target_embed_dimension) \
                    + "_" + "_".join(layers_to_extract_from) + "_" + "unsupervised" + "_result.csv"
     NMI_supervised, ARI_supervised, F1_supervised = read_file(category, supervised_name)
@@ -85,7 +85,7 @@ def draw(pretrain_embed_dimension,
                                                                     pretrain_embed_dimension,
                                                                     target_embed_dimension,
                                                                     layers_to_extract_from,
-                                                                    category)
+                                                                    "MVTec(texture)")
 
     NMI_supervised_WRN50, ARI_supervised_WRN50, F1_supervised_WRN50, \
     NMI_unsupervised_WRN50, ARI_unsupervised_WRN50, F1_unsupervised_WRN50, \
@@ -96,19 +96,19 @@ def draw(pretrain_embed_dimension,
                                                                           category)
 
 
-    draw_metrics(category, "NMI", NMI_supervised, NMI_unsupervised,
+    draw_metrics(category, "NMI", NMI_supervised, NMI_supervised_vit,
                  NMI_supervised_vit, NMI_unsupervised_vit,
                  NMI_supervised_WRN50, NMI_unsupervised_WRN50,
                  NMI_average,
                  "result/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + str(target_embed_dimension)
                  + "_" + "_".join(layers_to_extract_from))
-    draw_metrics(category, "ARI", ARI_supervised, ARI_unsupervised,
+    draw_metrics(category, "ARI", ARI_supervised, ARI_supervised_vit,
                  ARI_supervised_vit, ARI_unsupervised_vit,
                  ARI_supervised_WRN50, ARI_unsupervised_WRN50,
                  ARI_average,
                  "result/" + backbone_names[0] + "_" + str(pretrain_embed_dimension) + "_" + str(target_embed_dimension)
                  + "_" + "_".join(layers_to_extract_from))
-    draw_metrics(category, "F1", F1_supervised, F1_unsupervised,
+    draw_metrics(category, "F1", F1_supervised, F1_supervised_vit,
                  F1_supervised_vit, F1_unsupervised_vit,
                  F1_supervised_WRN50, F1_unsupervised_WRN50,
                  F1_average,
@@ -118,8 +118,8 @@ def draw(pretrain_embed_dimension,
 
 if __name__ == '__main__':
     pretrain_embed_dimension = 2048
-    target_embed_dimension = 2048
-    backbone_names = ["dino_deitsmall8_300ep"]
+    target_embed_dimension = 4096
+    backbone_names = ["wideresnet50"]
     layers_to_extract_from = ["blocks.10", "blocks.11"]
     blocks_list = ['blocks.0', 'blocks.1', 'blocks.2', 'blocks.3', 'blocks.4', 'blocks.5',
                    'blocks.6', 'blocks.7', 'blocks.8', 'blocks.9', 'blocks.10', 'blocks.11',
@@ -143,11 +143,11 @@ if __name__ == '__main__':
         # "tile",
         # "wood",
         "MVTec(object)",
-        "MVTec(texture)"
+        # "MVTec(texture)"
     ]
     for category in _CLASSNAMES:
         draw(pretrain_embed_dimension=pretrain_embed_dimension,
              target_embed_dimension=target_embed_dimension,
              backbone_names=backbone_names,
-             layers_to_extract_from=blocks_list,
+             layers_to_extract_from=["layer2", "layer3"],
              category=category)
