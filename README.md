@@ -96,12 +96,15 @@ You must modify the parameters in the draw_alpha.py including <br>
 | DINO ViT Base  | 0.635   | 0.551  | 0.696  |<font color=red>0.757</font>|<font color=red>0.686</font>| <font color=red>0.806</font> | <font color=red>0.790</font> |<font color=red>0.741</font>|<font color=red>0.857</font>|
 
 <font size=200>Comparation of different models</font><br>
+
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/2.jpg)
 
 <font size=200>Comparation of different layers of WRN50</font><br>
+
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/1.jpg)
 
 <font size=200>Comparation of different layers of DINO</font><br>
+
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/3.jpg)
 
 ## Related Efforts
