@@ -95,17 +95,39 @@ You must modify the parameters in the draw_alpha.py including <br>
 | ViT Base       | 0.685   | 0.610  | 0.736  | 0.648        | 0.569  | 0.728  | 0.727      | 0.654  | 0.786  |
 | DINO ViT Base  | 0.635   | 0.551  | 0.696  |<font color=red>0.757</font>|<font color=red>0.686</font>| <font color=red>0.806</font> | <font color=red>0.790</font> |<font color=red>0.741</font>|<font color=red>0.857</font>|
 
+
+
 <font size=200>Comparation of different models</font><br>
 
-![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/2.jpg)
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/comparation%20of%20different%20models.jpg)
+
+
+<font size=200>Comparation of different tau</font><br>
+
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20tau.jpg)
+
+
+<font size=200>Comparation of different train_ratio</font><br>
+
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/affect%20of%20train_ratio.jpg)
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20train_ratio.jpg)
+
+
+<font size=200>Comparation of supervised and unsupervised</font><br>
+
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/supervised%20or%20unsupervised.jpg)
+
+
 
 <font size=200>Comparation of different layers of WRN50</font><br>
 
-![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/1.jpg)
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20WRN50%20layers.jpg)
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20WRN50%20layers.jpg)
 
 <font size=200>Comparation of different layers of DINO</font><br>
 
-![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/3.jpg)
+![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20DINO%20layers.jpg)
+
 
 ## Related Efforts
 
