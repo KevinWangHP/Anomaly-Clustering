@@ -37,7 +37,7 @@ as the backbone for image feature extraction improves clustering performance and
 First, put dataset in the folder `data/mvtec_ad`. Notice that the dataloader `mvtec.py` in the folder `datasets` is just
 a copy of `models/datasets/mvtec.py`. When we run the program, we actually run into the original one.
 
-###Calculate Matrix Alpha
+### Calculate Matrix Alpha
 To calculate the matrix alpha, use
 >PYTHONPATH=models python examples/main.py --path data/mvtec_ad --backbone_names dino_vitbase8 --layers_to_extract_from blocks.10 blocks.11 --pretrain_embed_dimension 2048 --target_embed_dimension 4096 --output_dir outputs --patchsize 3 --tau 1 --train_ratio 1 --supervised unsupervised --dataset mvtec_ad
 
@@ -57,7 +57,7 @@ To calculate the matrix alpha, use
 Normally, we use a list of tau to calculate the matrix alpha. We change `for tau in [tau]:` to`for tau in tau_list:`.<br>
 `tau_list:`is a list of tau.
 
-###Calculate Metrics
+### Calculate Metrics
 To calculate the metrics of clustering: NMI, ARI, F1-micro. use 
 >PYTHONPATH=models python examples/test.py
 
@@ -65,7 +65,7 @@ Normally, we calculate the results of different tau. However, when we are intere
 we can change `for tau in tau_list:` to other statement such as `for train_ratio in train_ratio_list:` 
 or `for layer in layer_list:`.
 
-###Draw Matrix Alpha
+### Draw Matrix Alpha
 >PYTHONPATH=models python utils/draw_alpha.py
 
 You must modify the parameters in the draw_alpha.py including <br>
@@ -97,34 +97,34 @@ You must modify the parameters in the draw_alpha.py including <br>
 
 
 
-##<font size=200>Comparation of different models</font><br>
+### <font size=200>Comparation of different models</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/comparation%20of%20different%20models.jpg)
 
 
-##<font size=200>Comparation of different tau</font><br>
+### <font size=200>Comparation of different tau</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20tau.jpg)
 
 
-##<font size=200>Comparation of different train_ratio</font><br>
+### <font size=200>Comparation of different train_ratio</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/affect%20of%20train_ratio.jpg)
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20train_ratio.jpg)
 
 
-##<font size=200>Comparation of supervised and unsupervised</font><br>
+### <font size=200>Comparation of supervised and unsupervised</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/supervised%20or%20unsupervised.jpg)
 
 
 
-##<font size=200>Comparation of different layers of WRN50</font><br>
+### <font size=200>Comparation of different layers of WRN50</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20WRN50%20layers.jpg)
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20WRN50%20layers.jpg)
 
-##<font size=200>Comparation of different layers of DINO</font><br>
+### <font size=200>Comparation of different layers of DINO</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20DINO%20layers.jpg)
 
