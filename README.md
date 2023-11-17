@@ -97,34 +97,34 @@ You must modify the parameters in the draw_alpha.py including <br>
 
 
 
-<font size=200>Comparation of different models</font><br>
+##<font size=200>Comparation of different models</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/comparation%20of%20different%20models.jpg)
 
 
-<font size=200>Comparation of different tau</font><br>
+##<font size=200>Comparation of different tau</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20tau.jpg)
 
 
-<font size=200>Comparation of different train_ratio</font><br>
+##<font size=200>Comparation of different train_ratio</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/affect%20of%20train_ratio.jpg)
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20train_ratio.jpg)
 
 
-<font size=200>Comparation of supervised and unsupervised</font><br>
+##<font size=200>Comparation of supervised and unsupervised</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/supervised%20or%20unsupervised.jpg)
 
 
 
-<font size=200>Comparation of different layers of WRN50</font><br>
+##<font size=200>Comparation of different layers of WRN50</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20WRN50%20layers.jpg)
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20WRN50%20layers.jpg)
 
-<font size=200>Comparation of different layers of DINO</font><br>
+##<font size=200>Comparation of different layers of DINO</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/metrics%20of%20DINO%20layers.jpg)
 
