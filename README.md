@@ -113,7 +113,7 @@ You must modify the parameters in the draw_alpha.py including <br>
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/different%20train_ratio.jpg)
 
 
-### <font size=200>Comparation of supervised and unsupervised</font><br>
+### <font size=200>Comparation of unsupervised and supervised</font><br>
 
 ![image](https://github.com/KevinWangHP/Anomaly-Clustering/blob/master/picture/supervised%20or%20unsupervised.jpg)
 
